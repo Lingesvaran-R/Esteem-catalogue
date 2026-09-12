@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Esteem Multi Systems — Factory Automation Catalogue</title>
+<meta name="description" content="Esteem Multi Systems — industrial washing, drying, testing, oiling, conveying and automation systems, engineered in Chennai since 2009. Browse the full product catalogue.">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+<div id="loading-screen" class="loading-screen">
+  <div class="loading-inner">
+    <div class="loading-mark">
+      <svg viewBox="0 0 64 64" width="52" height="52" aria-hidden="true">
+        <circle cx="32" cy="32" r="29" fill="none" stroke="var(--amber)" stroke-width="2"/>
+        <path d="M32 10 L32 20 M32 44 L32 54 M10 32 L20 32 M44 32 L54 32" stroke="var(--amber)" stroke-width="2"/>
+        <circle cx="32" cy="32" r="11" fill="none" stroke="var(--paper)" stroke-width="2"/>
+      </svg>
+    </div>
+    <p class="loading-label">ESTEEM MULTI SYSTEMS</p>
+    <div class="loading-bar-track">
+      <div class="loading-bar-fill" id="loading-bar-fill"></div>
+    </div>
+    <p class="loading-percent" id="loading-percent">Loading catalogue — 0%</p>
+  </div>
+</div>
+
+<header class="topbar">
+  <div class="topbar-brand">
+    <span class="topbar-mark" aria-hidden="true">EMS</span>
+    <span class="topbar-title">Esteem Multi Systems</span>
+  </div>
+  <div class="topbar-controls">
+    <span class="page-counter" id="page-counter">— / —</span>
+    <button class="icon-btn" id="btn-toc" title="Table of contents" aria-label="Table of contents">
+      <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+    </button>
+    <button class="icon-btn" id="btn-zoom" title="Zoom" aria-label="Zoom">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+    </button>
+    <button class="icon-btn" id="btn-fullscreen" title="Fullscreen" aria-label="Fullscreen">
+      <svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+    </button>
+    <button class="btn-enquire" id="btn-enquire">Enquire</button>
+  </div>
+</header>
+
+<main>
+  <section class="hero" id="hero">
+    <div class="hero-grid" aria-hidden="true"></div>
+    <div class="hero-inner">
+      <p class="hero-eyebrow">EST. 2009 · AMBATTUR INDUSTRIAL ESTATE, CHENNAI</p>
+      <h1 class="hero-title">Esteem Multi Systems</h1>
+      <p class="hero-subtitle">Factory Automation Division</p>
+      <p class="hero-copy">Industrial washing, drying, testing, oiling, conveying &amp; automation systems — engineered for the modern production floor.</p>
+
+      <div class="hero-stats">
+        <div class="stat"><span class="stat-num">20+</span><span class="stat-label">Machine Models</span></div>
+        <div class="stat"><span class="stat-num">10</span><span class="stat-label">Product Categories</span></div>
+        <div class="stat"><span class="stat-num">2009</span><span class="stat-label">Established</span></div>
+        <div class="stat"><span class="stat-num">6</span><span class="stat-label">Specialist Engineers</span></div>
+      </div>
+
+      <div class="hero-tags">
+        <span>Washing &amp; Drying</span><span>Quality &amp; Testing</span><span>Oiling</span>
+        <span>Conveyors</span><span>Automation</span><span>Fixtures &amp; Fabrication</span>
+      </div>
+
+      <div class="hero-actions">
+        <a href="#book-section" class="btn-primary">Open Catalogue</a>
+        <a href="#" class="btn-secondary" id="hero-enquire">Enquire Now</a>
+      </div>
+    </div>
+    <div class="hero-scroll-cue" aria-hidden="true"><span></span></div>
+  </section>
+
+  <section class="book-section" id="book-section">
+    <div class="blueprint-backdrop" aria-hidden="true"></div>
+
+    <div class="book-stage" id="book-stage">
+      <button class="nav-arrow nav-arrow-left" id="nav-prev" aria-label="Previous page">
+        <svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+
+      <div class="book-wrap" id="book-wrap">
+        <div class="book" id="book"></div>
+        <div class="tap-zone tap-zone-left" id="tap-left" aria-hidden="true"></div>
+        <div class="tap-zone tap-zone-right" id="tap-right" aria-hidden="true"></div>
+      </div>
+
+      <button class="nav-arrow nav-arrow-right" id="nav-next" aria-label="Next page">
+        <svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+      </button>
+    </div>
+
+    <p class="page-settle-label" id="page-settle-label">Page 1 of 1</p>
+
+    <div class="progress-rail-wrap">
+      <div class="progress-rail" id="progress-rail">
+        <div class="progress-rail-fill" id="progress-rail-fill"></div>
+        <div class="progress-rail-handle" id="progress-rail-handle"></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<aside class="toc-drawer" id="toc-drawer" aria-hidden="true">
+  <div class="toc-header">
+    <h2>Contents</h2>
+    <button class="icon-btn" id="btn-toc-close" aria-label="Close">
+      <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </div>
+  <div class="toc-grid" id="toc-grid"></div>
+</aside>
+<div class="drawer-scrim" id="drawer-scrim"></div>
+
+<div class="zoom-overlay" id="zoom-overlay" aria-hidden="true">
+  <div class="zoom-toolbar">
+    <button class="icon-btn" id="btn-zoom-out" aria-label="Zoom out">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/><path d="M8 11h6"/></svg>
+    </button>
+    <button class="icon-btn" id="btn-zoom-in" aria-label="Zoom in">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg>
+    </button>
+    <button class="icon-btn" id="btn-zoom-close" aria-label="Close zoom">
+      <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </div>
+  <div class="zoom-viewport" id="zoom-viewport">
+    <img id="zoom-image" draggable="false" alt="Catalogue page zoomed">
+  </div>
+</div>
+
+<footer class="credit">Crafted by Godzane Tech</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/page-flip@2.0.7/dist/js/page-flip.browser.js"></script>
+<script src="assets/js/app.js"></script>
+</body>
+</html>
