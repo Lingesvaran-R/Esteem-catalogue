@@ -127,7 +127,7 @@
     const cats = $("cats");
     S.groups.forEach((g, gi) => {
       if (g.kind !== "section") return;
-      cats.appendChild(h("a", { class: "cat-chip", href: "#chapter-" + (gi + 1), text: g.name }));
+      cats.appendChild(h("button", { class: "cat-chip", type: "button", text: g.name, onclick: () => openInReader(g.start) }));
     });
   }
 
@@ -509,55 +509,12 @@
   }
   const drawerOpen = () => $("drawer").classList.contains("is-open");
 
-  /* ---------- Chronicle section ---------- */
-  function buildChronicle() {
-    const root = $("timeline");
-    S.groups.forEach((g, gi) => {
-      const products = g.items.filter((p) => p.kind === "product");
-      const cards = products.length ? products : g.items;
-      const grid = h("div", { class: "tl-grid" });
-      cards.forEach((p) => {
-        grid.appendChild(h("button", {
-          class: "tl-card", type: "button", "data-search": searchText(p, g),
-          onclick: () => openInReader(p.n)
-        }, [
-          h("span", { class: "tl-thumb" }, [h("img", { src: p.thumb, alt: "", loading: "lazy", width: "320", height: "240" })]),
-          h("span", { class: "tl-meta" }, [h("small", { text: p.kind === "product" ? p.label : "Chapter" }), h("strong", { text: p.title })]),
-          h("span", { class: "tl-foot" }, [h("span", { text: "Page " + pad2(p.n) }), icon("arrow")])
-        ]));
-      });
-      const count = cards.length;
-      const noun = g.kind === "section" ? (count === 1 ? "entry" : "entries") : count === 1 ? "chapter" : "chapters";
-      root.appendChild(h("article", { class: "tl-group neu", id: "chapter-" + (gi + 1) }, [
-        h("div", { class: "tl-side" }, [
-          h("span", { class: "tl-num", text: pad2(gi + 1) }),
-          h("h3", { text: g.name }),
-          h("p", { text: `Pages ${g.start}–${g.end} · ${count} ${noun}` }),
-          h("button", { class: "btn-neu sm", type: "button", onclick: () => openInReader(g.start) }, ["Open chapter", icon("arrow")])
-        ]),
-        grid
-      ]));
-    });
-
-    $("chronicle-search").addEventListener("input", () => {
-      const q = $("chronicle-search").value.trim().toLowerCase();
-      let shown = 0;
-      qsa(".tl-card", root).forEach((c) => {
-        const hit = !q || c.dataset.search.includes(q);
-        c.hidden = !hit;
-        if (hit) shown++;
-      });
-      qsa(".tl-group", root).forEach((g) => { g.hidden = !g.querySelector(".tl-card:not([hidden])"); });
-      $("chronicle-empty").hidden = shown > 0;
-    });
-  }
-
   function openInReader(n) {
     const reader = $("catalogue");
     const top = reader.getBoundingClientRect().top + window.scrollY;
     const far = Math.abs(window.scrollY - top) > 40;
     window.scrollTo({ top, behavior: "smooth" });
-    setTimeout(() => goTo(n), far ? 750 : 0);
+    if (n) setTimeout(() => goTo(n), far ? 750 : 0);
   }
 
   /* ---------- zoom ---------- */
@@ -803,34 +760,14 @@
     document.addEventListener("webkitfullscreenchange", sync);
   }
 
-  /* ---------- nav ---------- */
-  function wireNav() {
-    const menuBtn = $("nav-menu");
-    menuBtn.addEventListener("click", () => {
-      const open = document.body.classList.toggle("menu-open");
-      menuBtn.setAttribute("aria-expanded", open);
-    });
-    qsa(".nav-links a").forEach((a) => a.addEventListener("click", () => {
-      document.body.classList.remove("menu-open");
-      menuBtn.setAttribute("aria-expanded", "false");
-    }));
-
+  /* ---------- reading mode (nav hides while the book fills the screen) ---------- */
+  function wireReadingMode() {
     const reader = $("catalogue");
-    const ids = ["catalogue", "chronicle", "company", "contact"];
     let ticking = false;
     const onScroll = () => {
       ticking = false;
       const r = reader.getBoundingClientRect();
-      const vh = window.innerHeight;
-      const reading = r.top <= 70 && r.bottom >= vh * 0.6;
-      document.body.classList.toggle("reading", reading);
-      if (reading) document.body.classList.remove("menu-open");
-      let active = null;
-      for (const id of ids) {
-        const b = $(id).getBoundingClientRect();
-        if (b.top <= vh * 0.45 && b.bottom >= vh * 0.45) active = id;
-      }
-      qsa("[data-nav]").forEach((a) => a.classList.toggle("is-active", a.dataset.nav === active));
+      document.body.classList.toggle("reading", r.top <= 70 && r.bottom >= window.innerHeight * 0.6);
     };
     window.addEventListener("scroll", () => {
       if (!ticking) { ticking = true; requestAnimationFrame(onScroll); }
@@ -856,10 +793,6 @@
         if (e.key === "Escape") closeDrawer();
         return;
       }
-      if (document.body.classList.contains("menu-open") && e.key === "Escape") {
-        document.body.classList.remove("menu-open");
-        return;
-      }
       if (!S.flip) return;
       const reading = document.body.classList.contains("reading");
       if (e.key === "ArrowRight") { e.preventDefault(); next(); }
@@ -883,6 +816,10 @@
     $("btn-sound").addEventListener("click", () => setSound(!S.sound));
     qsa("[data-enquire]").forEach((b) => b.addEventListener("click", enquire));
     $("book3d").addEventListener("click", () => openInReader(2));
+    $("hero-chronicle").addEventListener("click", () => {
+      openInReader(0);
+      setTimeout(() => openDrawer("chronicle"), 800);
+    });
 
     if ("ResizeObserver" in window) new ResizeObserver(scheduleLayout).observe($("tray"));
     window.addEventListener("resize", () => { scheduleLayout(); if (Z.open) fitZoom(); });
@@ -950,11 +887,10 @@
     [...first].forEach(loadPage);
     initFlip(start ? start - 1 : 0);
     buildDrawer();
-    buildChronicle();
     wireRail();
     wireZoom();
     wireFullscreen();
-    wireNav();
+    wireReadingMode();
     wireKeys();
     wireControls();
 
