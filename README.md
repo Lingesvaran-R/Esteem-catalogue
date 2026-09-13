@@ -1,36 +1,44 @@
-# Esteem Multi Systems — Catalogue Flipbook
+# Esteem Multi Systems — Interactive Catalogue
 
-Interactive digital catalogue for Esteem Multi Systems (Chennai, est. 2009) —
-a hero landing section followed by a realistic double-page flipbook of the
-product catalogue.
+A premium single-page site for Esteem Multi Systems (Chennai, est. 2009): a
+landing section, a realistic page-turning catalogue, the Chronicle chapter
+index, company profile and contact details.
 
-Live: deployed via Vercel from this repository's `main` branch.
+Hosted on Vercel — every push to `main` rebuilds and redeploys automatically.
 
 ## Updating the catalogue
 
-The page count is detected automatically at load time — there is nothing to
-edit in the code for a normal update:
+Only the `/images` folder needs to change.
 
-1. Export/replace the catalogue pages as JPGs named `page-01.jpg`,
-   `page-02.jpg`, … sequentially, no gaps, in `/images`.
-2. Commit and push to `main`. Vercel redeploys automatically.
+1. Put the page images in `/images`. Each file name must **start with its page
+   number**. Anything after the number becomes the page title:
 
-If you only have a PDF, the scripts in `/tools` (Windows PowerShell, no
-extra installs required) will rasterize it to `/images`:
+   | File name | Shown as |
+   | --- | --- |
+   | `01 — Cover.png` | Cover |
+   | `14 — SECTION — Industrial Part Drying Machine.png` | Chapter opener |
+   | `15 — Product 10_ Centrifugal Drying Machine.png` | Product 10: Centrifugal Drying Machine |
+   | `page-07.jpg` | Page 7 |
 
-```powershell
-# Render pages from a PDF to full-resolution PNGs
-powershell -ExecutionPolicy Bypass -File tools/render-pages.ps1 -PdfPath "your-catalogue.pdf" -OutDir images
+   `SECTION —` starts a new chapter in the Chronicle, `Product NN_` marks a
+   machine (`_` stands in for `:`, which Windows does not allow in file
+   names). PNG, JPG, WebP and AVIF all work.
+2. Commit and push. Vercel runs `npm run build`, which optimises the images,
+   builds the Chronicle from the file names and publishes the site.
 
-# Compress the rendered PNGs to web-sized JPGs (deletes the PNGs)
-powershell -ExecutionPolicy Bypass -File tools/compress-pages.ps1 -InDir images
+## Local preview
+
+```bash
+npm install
+npm run dev
 ```
+
+Then open http://localhost:5173.
 
 ## Structure
 
-- `index.html` — hero section + flipbook markup
-- `assets/css/style.css` — theme, layout, book/page styling
-- `assets/js/app.js` — page detection/preload, flipbook init (page-flip.js),
-  table of contents, zoom, fullscreen, enquiry link
-- `images/page-NN.jpg` — catalogue pages
-- `tools/` — one-off PDF → image conversion scripts (Windows PowerShell)
+- `images/` — source catalogue pages (the only thing to edit for updates)
+- `index.html`, `assets/` — page markup, styles, scripts, logos
+- `scripts/build.mjs` — generates `dist/` (optimised pages, thumbnails,
+  chapter data, social preview image)
+- `tools/` — optional Windows helpers (PDF → images, logo variants)

@@ -3,9 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Esteem Multi Systems — Factory Automation Catalogue</title>
-<meta name="description" content="Esteem Multi Systems — industrial washing, drying, testing, oiling, conveying and automation systems, engineered in Chennai since 2009. Browse the full product catalogue.">
+<title>Esteem Multi Systems — Product Catalogue</title>
+<meta name="description" content="Esteem Multi Systems, Chennai — industrial part washing, drying, leak testing, oiling, conveyor and automation machines engineered in-house since 2009. Browse the complete interactive catalogue.">
+<meta name="theme-color" content="#E4E8E1">
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Esteem Multi Systems — Product Catalogue">
+<meta property="og:description" content="Industrial washing, drying, testing, oiling, conveying and automation systems. Engineered in Chennai since 2009.">
+<meta property="og:image" content="%OG_IMAGE%">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -13,132 +20,258 @@
 </head>
 <body>
 
-<div id="loading-screen" class="loading-screen">
-  <div class="loading-inner">
-    <div class="loading-mark">
-      <svg viewBox="0 0 64 64" width="52" height="52" aria-hidden="true">
-        <circle cx="32" cy="32" r="29" fill="none" stroke="var(--amber)" stroke-width="2"/>
-        <path d="M32 10 L32 20 M32 44 L32 54 M10 32 L20 32 M44 32 L54 32" stroke="var(--amber)" stroke-width="2"/>
-        <circle cx="32" cy="32" r="11" fill="none" stroke="var(--paper)" stroke-width="2"/>
-      </svg>
-    </div>
-    <p class="loading-label">ESTEEM MULTI SYSTEMS</p>
-    <div class="loading-bar-track">
-      <div class="loading-bar-fill" id="loading-bar-fill"></div>
-    </div>
-    <p class="loading-percent" id="loading-percent">Loading catalogue — 0%</p>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+    <symbol id="i-chev-left" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
+    <symbol id="i-chev-right" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></symbol>
+    <symbol id="i-first" viewBox="0 0 24 24"><path d="M18 5l-7 7 7 7M7 5v14"/></symbol>
+    <symbol id="i-last" viewBox="0 0 24 24"><path d="M6 5l7 7-7 7M17 5v14"/></symbol>
+    <symbol id="i-chronicle" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1.3"/><circle cx="4.5" cy="12" r="1.3"/><circle cx="4.5" cy="18" r="1.3"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24"><rect x="4" y="4" width="6.5" height="6.5" rx="1.6"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.6"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.6"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.6"/></symbol>
+    <symbol id="i-zoom-in" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M20.5 20.5l-4.2-4.2M11 8.3v5.4M8.3 11h5.4"/></symbol>
+    <symbol id="i-zoom-out" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M20.5 20.5l-4.2-4.2M8.3 11h5.4"/></symbol>
+    <symbol id="i-fit" viewBox="0 0 24 24"><path d="M4 4l5 5M20 4l-5 5M4 20l5-5M20 20l-5-5M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></symbol>
+    <symbol id="i-expand" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></symbol>
+    <symbol id="i-collapse" viewBox="0 0 24 24"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></symbol>
+    <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M3.5 7.5l8.5 6 8.5-6"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1 1M14 10a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1-1"/></symbol>
+    <symbol id="i-sound" viewBox="0 0 24 24"><path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5H4zM15.5 9a4.2 4.2 0 0 1 0 6M18.2 6.5a8 8 0 0 1 0 11"/></symbol>
+    <symbol id="i-mute" viewBox="0 0 24 24"><path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5H4zM16 9.5l5 5M21 9.5l-5 5"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M20.5 20.5l-4.2-4.2"/></symbol>
+    <symbol id="i-phone" viewBox="0 0 24 24"><path d="M5.5 4h3.2l1.8 4.6-2.3 1.4a11 11 0 0 0 5.8 5.8l1.4-2.3 4.6 1.8v3.2a2 2 0 0 1-2.1 2A16.5 16.5 0 0 1 3.5 6.1 2 2 0 0 1 5.5 4z"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-6.5-5.9-6.5-11.2a6.5 6.5 0 0 1 13 0C18.5 15.1 12 21 12 21z"/><circle cx="12" cy="9.8" r="2.4"/></symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.4 2.6 3.6 5.4 3.6 8.5s-1.2 5.9-3.6 8.5M12 3.5C9.6 6.1 8.4 8.9 8.4 12s1.2 5.9 3.6 8.5"/></symbol>
+    <symbol id="i-hand" viewBox="0 0 24 24"><path d="M9 11V5.8a1.6 1.6 0 0 1 3.2 0V11m0-1.6a1.6 1.6 0 0 1 3.2 0V12m0-1.2a1.6 1.6 0 0 1 3.2 0v4.4a5.8 5.8 0 0 1-5.8 5.8h-1.4a4.3 4.3 0 0 1-3.3-1.6L4.6 16.6a1.7 1.7 0 0 1 2.5-2.3L9 16.2"/></symbol>
+    <symbol id="i-compass" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.8"/><path d="M11.2 6.7L6 20M12.8 6.7L18 20M8 15h8"/></symbol>
+    <symbol id="i-frame" viewBox="0 0 24 24"><path d="M3 20h18M5.5 20V9.5L12 5l6.5 4.5V20M9 20v-5.5h6V20"/></symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13.2 3L5.5 13.6h5.6L10.2 21l8.3-11h-5.8l.5-7z"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M8.2 12.4l2.6 2.6 5-5.4"/></symbol>
+  </defs>
+</svg>
+
+<div class="loader" id="loader" role="status" aria-live="polite">
+  <div class="loader-card neu">
+    <img src="assets/img/logo-green.png" alt="Esteem Multi Systems" class="loader-logo" width="200" height="91">
+    <p class="loader-caption">Preparing the catalogue</p>
+    <div class="loader-track neu-inset-sm"><div class="loader-fill" id="loader-fill"></div></div>
+    <p class="loader-pct" id="loader-text">0%</p>
   </div>
 </div>
 
-<header class="topbar">
-  <div class="topbar-brand">
-    <span class="topbar-mark" aria-hidden="true">EMS</span>
-    <span class="topbar-title">Esteem Multi Systems</span>
-  </div>
-  <div class="topbar-controls">
-    <span class="page-counter" id="page-counter">— / —</span>
-    <button class="icon-btn" id="btn-toc" title="Table of contents" aria-label="Table of contents">
-      <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
-    </button>
-    <button class="icon-btn" id="btn-zoom" title="Zoom" aria-label="Zoom">
-      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
-    </button>
-    <button class="icon-btn" id="btn-fullscreen" title="Fullscreen" aria-label="Fullscreen">
-      <svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
-    </button>
-    <button class="btn-enquire" id="btn-enquire">Enquire</button>
+<header class="nav" id="nav">
+  <div class="nav-inner neu">
+    <a class="nav-brand" href="#top" aria-label="Esteem Multi Systems — home">
+      <img src="assets/img/logo-green.png" alt="" width="70" height="32">
+      <span class="nav-brand-text"><strong>Esteem Multi Systems</strong><small>Factory Automation Division</small></span>
+    </a>
+    <nav class="nav-links" id="nav-links" aria-label="Primary">
+      <a href="#catalogue" data-nav="catalogue">Catalogue</a>
+      <a href="#chronicle" data-nav="chronicle">Chronicle</a>
+      <a href="#company" data-nav="company">Company</a>
+      <a href="#contact" data-nav="contact">Contact</a>
+    </nav>
+    <div class="nav-actions">
+      <button class="btn-jewel sm" type="button" data-enquire><svg><use href="#i-mail"/></svg><span>Enquire</span></button>
+      <button class="neu-icon nav-menu" id="nav-menu" type="button" aria-label="Open menu" aria-expanded="false"><svg><use href="#i-menu"/></svg></button>
+    </div>
   </div>
 </header>
 
 <main>
-  <section class="hero" id="hero">
-    <div class="hero-grid" aria-hidden="true"></div>
-    <div class="hero-inner">
-      <p class="hero-eyebrow">EST. 2009 · AMBATTUR INDUSTRIAL ESTATE, CHENNAI</p>
-      <h1 class="hero-title">Esteem Multi Systems</h1>
-      <p class="hero-subtitle">Factory Automation Division</p>
-      <p class="hero-copy">Industrial washing, drying, testing, oiling, conveying &amp; automation systems — engineered for the modern production floor.</p>
-
-      <div class="hero-stats">
-        <div class="stat"><span class="stat-num">20+</span><span class="stat-label">Machine Models</span></div>
-        <div class="stat"><span class="stat-num">10</span><span class="stat-label">Product Categories</span></div>
-        <div class="stat"><span class="stat-num">2009</span><span class="stat-label">Established</span></div>
-        <div class="stat"><span class="stat-num">6</span><span class="stat-label">Specialist Engineers</span></div>
+  <section class="hero" id="top">
+    <div class="hero-copy">
+      <span class="chip-inset"><span class="chip-dot"></span>Since 2009 · Ambattur Industrial Estate, Chennai</span>
+      <h1>Engineered for the <em>modern production floor.</em></h1>
+      <p class="lead">Industrial part washing, drying, leak testing, oiling, conveying and automation systems — designed, fabricated and commissioned under one roof.</p>
+      <div class="hero-cta">
+        <a class="btn-jewel" href="#catalogue">Open the catalogue <svg><use href="#i-arrow"/></svg></a>
+        <a class="btn-neu" href="#chronicle"><svg><use href="#i-chronicle"/></svg> Browse the Chronicle</a>
       </div>
-
-      <div class="hero-tags">
-        <span>Washing &amp; Drying</span><span>Quality &amp; Testing</span><span>Oiling</span>
-        <span>Conveyors</span><span>Automation</span><span>Fixtures &amp; Fabrication</span>
-      </div>
-
-      <div class="hero-actions">
-        <a href="#book-section" class="btn-primary">Open Catalogue</a>
-        <a href="#" class="btn-secondary" id="hero-enquire">Enquire Now</a>
+      <div class="stats">
+        <div class="stat neu-sm"><strong data-stat="machines">25</strong><span>Machines</span></div>
+        <div class="stat neu-sm"><strong data-stat="chapters">10</strong><span>Categories</span></div>
+        <div class="stat neu-sm"><strong data-stat="years">17</strong><span>Years</span></div>
+        <div class="stat neu-sm"><strong data-stat="pages">41</strong><span>Pages</span></div>
       </div>
     </div>
-    <div class="hero-scroll-cue" aria-hidden="true"><span></span></div>
+
+    <div class="hero-show">
+      <div class="plinth neu">
+        <div class="plinth-well neu-inset">
+          <button class="book3d" id="book3d" type="button" aria-label="Open the catalogue">
+            <span class="b3-back"></span>
+            <span class="b3-spine"></span>
+            <span class="b3-pages"></span>
+            <span class="b3-cover"><img id="book3d-cover" alt="" width="248" height="351"></span>
+          </button>
+          <span class="plinth-caption">Tap to open</span>
+        </div>
+        <div class="badge badge-a neu-sm"><strong data-stat="pages">41</strong><span>Pages</span></div>
+        <div class="badge badge-b neu-sm"><svg><use href="#i-check"/></svg><span>ISO certified</span></div>
+      </div>
+    </div>
   </section>
 
-  <section class="book-section" id="book-section">
-    <div class="blueprint-backdrop" aria-hidden="true"></div>
+  <section class="cats" aria-label="Product categories">
+    <div class="cats-inner" id="cats"></div>
+  </section>
 
-    <div class="book-stage" id="book-stage">
-      <button class="nav-arrow nav-arrow-left" id="nav-prev" aria-label="Previous page">
-        <svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
-      </button>
+  <section class="intro" aria-labelledby="catalogue-title">
+    <div class="intro-inner">
+      <p class="eyebrow">The Catalogue</p>
+      <h2 id="catalogue-title">Turn every page like the real thing.</h2>
+      <p class="lead sm">Click and hold a page, then drag it left or right. On a phone, touch and hold before you drag — or simply swipe.</p>
+    </div>
+  </section>
+
+  <section class="reader" id="catalogue" aria-label="Interactive catalogue">
+    <div class="tray neu-inset" id="tray">
+      <button class="side-arrow prev neu-icon lg" id="side-prev" type="button" aria-label="Previous page"><svg><use href="#i-chev-left"/></svg></button>
 
       <div class="book-wrap" id="book-wrap">
-        <div class="book" id="book"></div>
-        <div class="tap-zone tap-zone-left" id="tap-left" aria-hidden="true"></div>
-        <div class="tap-zone tap-zone-right" id="tap-right" aria-hidden="true"></div>
+        <div class="book-slide" id="book-slide">
+          <div class="book-shell" id="book-shell" aria-hidden="true">
+            <span class="book-floor"></span>
+            <span class="edge edge-left" id="edge-left"></span>
+            <span class="edge edge-right" id="edge-right"></span>
+          </div>
+          <div class="book" id="book"></div>
+          <span class="spine" id="spine" aria-hidden="true"></span>
+        </div>
       </div>
 
-      <button class="nav-arrow nav-arrow-right" id="nav-next" aria-label="Next page">
-        <svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
-      </button>
+      <button class="side-arrow next neu-icon lg" id="side-next" type="button" aria-label="Next page"><svg><use href="#i-chev-right"/></svg></button>
+
+      <div class="hint neu-sm" id="hint" aria-hidden="true"><span class="hint-hand"><svg><use href="#i-hand"/></svg></span><span id="hint-text">Click &amp; hold a page, then drag to turn</span></div>
+      <p class="settle" id="settle" aria-live="polite"></p>
     </div>
 
-    <p class="page-settle-label" id="page-settle-label">Page 1 of 1</p>
-
-    <div class="progress-rail-wrap">
-      <div class="progress-rail" id="progress-rail">
-        <div class="progress-rail-fill" id="progress-rail-fill"></div>
-        <div class="progress-rail-handle" id="progress-rail-handle"></div>
+    <div class="dock neu" id="dock">
+      <div class="rail" id="rail" role="slider" tabindex="0" aria-label="Catalogue position" aria-valuemin="1" aria-valuemax="41" aria-valuenow="1">
+        <div class="rail-track neu-inset-sm"><div class="rail-fill" id="rail-fill"></div><div class="rail-ticks" id="rail-ticks"></div></div>
+        <div class="rail-knob" id="rail-knob"></div>
+        <div class="rail-tip neu-sm" id="rail-tip"><img id="rail-tip-img" alt="" width="54" height="76"><span id="rail-tip-text"></span></div>
       </div>
+      <div class="dock-row">
+        <div class="dock-group start">
+          <button class="neu-icon" id="btn-chronicle" type="button" aria-label="Chronicle" data-tip="Chronicle"><svg><use href="#i-chronicle"/></svg></button>
+          <button class="neu-icon" id="btn-grid" type="button" aria-label="All pages" data-tip="All pages"><svg><use href="#i-grid"/></svg></button>
+          <button class="neu-icon hide-sm" id="btn-sound" type="button" aria-label="Page sound" aria-pressed="true" data-tip="Page sound"><svg><use href="#i-sound"/></svg></button>
+        </div>
+        <div class="dock-group center">
+          <button class="neu-icon hide-sm" id="btn-first" type="button" aria-label="First page" data-tip="First page"><svg><use href="#i-first"/></svg></button>
+          <button class="neu-icon" id="btn-prev" type="button" aria-label="Previous page"><svg><use href="#i-chev-left"/></svg></button>
+          <div class="counter neu-inset-sm"><strong id="counter">1 / 41</strong><span id="counter-sub">Cover</span></div>
+          <button class="neu-icon" id="btn-next" type="button" aria-label="Next page"><svg><use href="#i-chev-right"/></svg></button>
+          <button class="neu-icon hide-sm" id="btn-last" type="button" aria-label="Last page" data-tip="Last page"><svg><use href="#i-last"/></svg></button>
+        </div>
+        <div class="dock-group end">
+          <button class="neu-icon" id="btn-zoom" type="button" aria-label="Zoom page" data-tip="Zoom"><svg><use href="#i-zoom-in"/></svg></button>
+          <button class="neu-icon" id="btn-share" type="button" aria-label="Share this page" data-tip="Share page"><svg><use href="#i-link"/></svg></button>
+          <button class="neu-icon" id="btn-full" type="button" aria-label="Fullscreen" data-tip="Fullscreen"><svg><use href="#i-expand"/></svg></button>
+          <button class="btn-jewel sm" type="button" data-enquire><svg><use href="#i-mail"/></svg><span>Enquire</span></button>
+        </div>
+      </div>
+    </div>
+
+    <aside class="drawer neu" id="drawer" aria-hidden="true" aria-label="Chronicle and pages">
+      <div class="drawer-head">
+        <div class="tabs neu-inset-sm" role="tablist">
+          <button class="tab is-active" type="button" role="tab" data-tab="chronicle" aria-selected="true">Chronicle</button>
+          <button class="tab" type="button" role="tab" data-tab="pages" aria-selected="false">Pages</button>
+        </div>
+        <button class="neu-icon" id="drawer-close" type="button" aria-label="Close"><svg><use href="#i-close"/></svg></button>
+      </div>
+      <label class="search neu-inset-sm"><svg><use href="#i-search"/></svg><input id="drawer-search" type="search" placeholder="Search machines or chapters" autocomplete="off"></label>
+      <div class="drawer-body">
+        <div class="drawer-panel is-active" id="panel-chronicle" role="tabpanel"></div>
+        <div class="drawer-panel" id="panel-pages" role="tabpanel"><div class="page-grid" id="page-grid"></div></div>
+        <p class="empty" id="drawer-empty" hidden>No pages match that search.</p>
+      </div>
+    </aside>
+    <div class="scrim" id="scrim"></div>
+
+    <div class="zoom" id="zoom" aria-hidden="true" role="dialog" aria-label="Page zoom">
+      <div class="zoom-stage" id="zoom-stage"><img id="zoom-img" alt="" draggable="false"></div>
+      <div class="zoom-bar neu">
+        <button class="neu-icon" id="zoom-prev" type="button" aria-label="Previous page"><svg><use href="#i-chev-left"/></svg></button>
+        <span class="zoom-title neu-inset-sm" id="zoom-title">Page 1</span>
+        <button class="neu-icon" id="zoom-next" type="button" aria-label="Next page"><svg><use href="#i-chev-right"/></svg></button>
+        <span class="zoom-sep" aria-hidden="true"></span>
+        <button class="neu-icon" id="zoom-out" type="button" aria-label="Zoom out"><svg><use href="#i-zoom-out"/></svg></button>
+        <span class="zoom-level" id="zoom-level">100%</span>
+        <button class="neu-icon" id="zoom-in" type="button" aria-label="Zoom in"><svg><use href="#i-zoom-in"/></svg></button>
+        <button class="neu-icon hide-xs" id="zoom-fit" type="button" aria-label="Fit page"><svg><use href="#i-fit"/></svg></button>
+        <button class="neu-icon" id="zoom-close" type="button" aria-label="Close zoom"><svg><use href="#i-close"/></svg></button>
+      </div>
+    </div>
+
+    <div class="toast neu-sm" id="toast" role="status" aria-live="polite"></div>
+  </section>
+
+  <section class="chronicle" id="chronicle" aria-labelledby="chronicle-title">
+    <div class="section-head">
+      <div>
+        <p class="eyebrow">Chronicle</p>
+        <h2 id="chronicle-title">Every chapter, at a glance.</h2>
+        <p class="lead sm">Jump straight to any machine in the catalogue — the book opens on that page.</p>
+      </div>
+      <label class="search neu-inset"><svg><use href="#i-search"/></svg><input id="chronicle-search" type="search" placeholder="Search e.g. vacuum, conveyor, leak" autocomplete="off"></label>
+    </div>
+    <div class="timeline" id="timeline"></div>
+    <p class="empty" id="chronicle-empty" hidden>No machines match that search.</p>
+  </section>
+
+  <section class="company" id="company" aria-labelledby="company-title">
+    <div class="company-card neu">
+      <div class="company-text">
+        <p class="eyebrow">Company</p>
+        <h2 id="company-title">One team, from drawing board to commissioning.</h2>
+        <p>Esteem Multi Systems was established in 2009 by senior engineers with more than two decades of experience across the automation field. As the need for factory automation grew, a single team was formed for design, fabrication, electrical and procurement — so every machine is engineered, built and handed over under one roof.</p>
+        <p class="muted">Partnership firm · Head office at Ambattur Industrial Estate, Chennai, Tamil Nadu.</p>
+      </div>
+      <div class="caps">
+        <div class="cap neu-sm"><span class="cap-icon neu-inset-sm"><svg><use href="#i-compass"/></svg></span><h3>Design</h3><p>Machines engineered around your exact component geometry and cycle time.</p></div>
+        <div class="cap neu-sm"><span class="cap-icon neu-inset-sm"><svg><use href="#i-frame"/></svg></span><h3>Fabrication</h3><p>In-house sheet-metal, structural and stainless-steel precision assembly.</p></div>
+        <div class="cap neu-sm"><span class="cap-icon neu-inset-sm"><svg><use href="#i-bolt"/></svg></span><h3>Electrical &amp; controls</h3><p>PLC-driven automation, panels and integration with your production line.</p></div>
+        <div class="cap neu-sm"><span class="cap-icon neu-inset-sm"><svg><use href="#i-check"/></svg></span><h3>Commissioning</h3><p>Procurement, installation and after-sales support for every system.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="contact" id="contact" aria-labelledby="contact-title">
+    <div class="contact-card neu">
+      <div class="contact-text">
+        <p class="eyebrow">Contact</p>
+        <h2 id="contact-title">Tell us what you need to wash, dry, test or move.</h2>
+        <p class="lead sm">Share the component, required output and plant location — our engineers will come back with a recommended configuration and quotation.</p>
+        <div class="hero-cta">
+          <button class="btn-jewel" type="button" data-enquire><svg><use href="#i-mail"/></svg> Send an enquiry</button>
+          <a class="btn-neu" href="tel:+919381855545"><svg><use href="#i-phone"/></svg> Call us</a>
+        </div>
+      </div>
+      <ul class="contact-list">
+        <li class="contact-row neu-inset-sm"><span class="row-icon neu-sm"><svg><use href="#i-pin"/></svg></span><span><small>Address</small>DP 112/9, South Phase, 2nd Main Road, Ambattur Industrial Estate, Chennai – 600058</span></li>
+        <li class="contact-row neu-inset-sm"><span class="row-icon neu-sm"><svg><use href="#i-phone"/></svg></span><span><small>Phone</small><a href="tel:+919381855545">+91 93818 55545</a> · <a href="tel:+919003228253">+91 90032 28253</a></span></li>
+        <li class="contact-row neu-inset-sm"><span class="row-icon neu-sm"><svg><use href="#i-mail"/></svg></span><span><small>Email</small><a href="mailto:info@esteemmultisystems.com">info@esteemmultisystems.com</a></span></li>
+        <li class="contact-row neu-inset-sm"><span class="row-icon neu-sm"><svg><use href="#i-globe"/></svg></span><span><small>Website</small><a href="https://www.esteemmultisystems.com" target="_blank" rel="noopener">www.esteemmultisystems.com</a></span></li>
+      </ul>
     </div>
   </section>
 </main>
 
-<aside class="toc-drawer" id="toc-drawer" aria-hidden="true">
-  <div class="toc-header">
-    <h2>Contents</h2>
-    <button class="icon-btn" id="btn-toc-close" aria-label="Close">
-      <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
-    </button>
+<footer class="footer">
+  <div class="footer-inner">
+    <img src="assets/img/logo-green.png" alt="Esteem Multi Systems" width="62" height="28">
+    <span>© <span id="year">2026</span> Esteem Multi Systems. All rights reserved.</span>
+    <span class="credit">Crafted by Godzane Tech</span>
   </div>
-  <div class="toc-grid" id="toc-grid"></div>
-</aside>
-<div class="drawer-scrim" id="drawer-scrim"></div>
+</footer>
 
-<div class="zoom-overlay" id="zoom-overlay" aria-hidden="true">
-  <div class="zoom-toolbar">
-    <button class="icon-btn" id="btn-zoom-out" aria-label="Zoom out">
-      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/><path d="M8 11h6"/></svg>
-    </button>
-    <button class="icon-btn" id="btn-zoom-in" aria-label="Zoom in">
-      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg>
-    </button>
-    <button class="icon-btn" id="btn-zoom-close" aria-label="Close zoom">
-      <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
-    </button>
-  </div>
-  <div class="zoom-viewport" id="zoom-viewport">
-    <img id="zoom-image" draggable="false" alt="Catalogue page zoomed">
-  </div>
-</div>
-
-<footer class="credit">Crafted by Godzane Tech</footer>
-
+<!--CATALOGUE_DATA-->
 <script src="https://cdn.jsdelivr.net/npm/page-flip@2.0.7/dist/js/page-flip.browser.js"></script>
 <script src="assets/js/app.js"></script>
 </body>

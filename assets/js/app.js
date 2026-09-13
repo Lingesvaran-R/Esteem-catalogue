@@ -1,453 +1,973 @@
 /*
-  Esteem Multi Systems — flipbook catalogue.
-  To update the catalogue: replace files in /images following the
-  page-01.jpg, page-02.jpg ... naming pattern (2-digit, sequential,
-  no gaps) and push. Page count is auto-detected below — nothing
-  else needs to change.
+  Esteem Multi Systems — interactive catalogue.
+  Page data is generated at build time from the files in /images
+  (see scripts/build.mjs) and injected as window.__CATALOGUE__.
 */
-(function () {
+(() => {
   "use strict";
 
-  var CONFIG = {
-    dir: "images/",
-    ext: "jpg",
-    pad: 2,
-    maxProbe: 300,
-    enquireEmail: "info@esteemmultisystems.com"
-  };
+  const DATA = window.__CATALOGUE__;
+  const EMAIL = "info@esteemmultisystems.com";
+  const FOUNDED = 2009;
+  const coarse = window.matchMedia("(pointer: coarse)").matches;
+  const $ = (id) => document.getElementById(id);
+  const qsa = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+  const pad2 = (n) => String(n).padStart(2, "0");
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
-  var state = {
+  const S = {
     total: 0,
-    pages: [],       // array of image URLs, 1-indexed via pages[i-1]
-    pageFlip: null,
-    currentPage: 1,
-    settleTimer: null
+    idx: 0,
+    focus: 0,
+    flip: null,
+    spread: true,
+    groups: [],
+    pageEls: [],
+    sound: true,
+    audio: null,
+    hintDone: false,
+    settleTimer: 0,
+    toastTimer: 0,
+    layoutRaf: 0
   };
 
-  function pad(n) {
-    var s = String(n);
-    while (s.length < CONFIG.pad) s = "0" + s;
-    return s;
-  }
-
-  function pageUrl(n) {
-    return CONFIG.dir + "page-" + pad(n) + "." + CONFIG.ext;
-  }
-
-  function imageExists(url) {
-    return new Promise(function (resolve) {
-      var img = new Image();
-      img.onload = function () { resolve(true); };
-      img.onerror = function () { resolve(false); };
-      img.src = url;
-    });
-  }
-
-  // Exponential probe then binary search to find the last existing page.
-  function detectPageCount() {
-    return imageExists(pageUrl(1)).then(function (hasFirst) {
-      if (!hasFirst) return 0;
-      var lo = 1, hi = 1;
-      function grow() {
-        var next = hi * 2;
-        if (next > CONFIG.maxProbe) next = CONFIG.maxProbe;
-        return imageExists(pageUrl(next)).then(function (ok) {
-          if (ok) {
-            lo = next; hi = next;
-            if (next >= CONFIG.maxProbe) return binarySearch(lo, CONFIG.maxProbe);
-            return grow();
-          } else {
-            return binarySearch(lo, next);
-          }
-        });
-      }
-      function binarySearch(low, high) {
-        if (high - low <= 1) return Promise.resolve(low);
-        var mid = Math.floor((low + high) / 2);
-        return imageExists(pageUrl(mid)).then(function (ok) {
-          if (ok) return binarySearch(mid, high);
-          return binarySearch(low, mid);
-        });
-      }
-      return grow();
-    });
-  }
-
-  function preloadAll(urls, onProgress) {
-    var loaded = 0;
-    return Promise.all(urls.map(function (url) {
-      return new Promise(function (resolve) {
-        var img = new Image();
-        img.onload = img.onerror = function () {
-          loaded++;
-          onProgress(loaded, urls.length);
-          resolve();
-        };
-        img.src = url;
-      });
-    }));
-  }
-
-  function buildPageDom(n, total) {
-    var wrap = document.createElement("div");
-    wrap.className = "page";
-    wrap.setAttribute("data-density", (n === 1 || n === total) ? "hard" : "soft");
-
-    var isRight = n % 2 === 1;
-    var face = document.createElement("div");
-    face.className = "page-face " + (isRight ? "right" : "left");
-
-    var img = document.createElement("img");
-    img.src = pageUrl(n);
-    img.alt = "Catalogue page " + n;
-    img.loading = "eager";
-    img.draggable = false;
-
-    var grain = document.createElement("div");
-    grain.className = "page-grain";
-
-    var sheen = document.createElement("div");
-    sheen.className = "page-sheen";
-
-    var spine = document.createElement("div");
-    spine.className = "page-spine-shadow " + (isRight ? "left" : "right");
-
-    var numTag = document.createElement("span");
-    numTag.className = "page-number-tag";
-    numTag.textContent = String(n);
-
-    face.appendChild(img);
-    face.appendChild(grain);
-    face.appendChild(sheen);
-    face.appendChild(spine);
-    face.appendChild(numTag);
-    wrap.appendChild(face);
-    return wrap;
-  }
-
-  function initFlipbook() {
-    var bookEl = document.getElementById("book");
-    for (var i = 1; i <= state.total; i++) {
-      bookEl.appendChild(buildPageDom(i, state.total));
+  /* ---------- tiny DOM helpers (titles come from file names, so never innerHTML) ---------- */
+  function h(tag, attrs = {}, children = []) {
+    const el = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs)) {
+      if (v == null || v === false) continue;
+      if (k === "class") el.className = v;
+      else if (k === "text") el.textContent = v;
+      else if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
+      else el.setAttribute(k, v === true ? "" : v);
     }
+    for (const c of children) if (c != null) el.appendChild(typeof c === "string" ? document.createTextNode(c) : c);
+    return el;
+  }
+  function icon(name) {
+    const ns = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(ns, "svg");
+    svg.setAttribute("aria-hidden", "true");
+    const use = document.createElementNS(ns, "use");
+    use.setAttribute("href", "#i-" + name);
+    svg.appendChild(use);
+    return svg;
+  }
+  function setIcon(btn, name) {
+    const use = btn.querySelector("use");
+    if (use) use.setAttribute("href", "#i-" + name);
+  }
+  const store = {
+    get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  };
 
-    var aspect = 1600 / 2263;
-    var singleW = Math.min(520, Math.round(window.innerHeight * 0.62 * aspect));
-
-    var pageFlip = new St.PageFlip(bookEl, {
-      width: singleW,
-      height: Math.round(singleW / aspect),
-      size: "stretch",
-      minWidth: 220,
-      maxWidth: 900,
-      minHeight: 310,
-      maxHeight: 1200,
-      maxShadowOpacity: 0.6,
-      showCover: false,
-      usePortrait: true,
-      mobileScrollSupport: false,
-      flippingTime: 900,
-      useMouseEvents: true,
-      drawShadow: true
-    });
-
-    pageFlip.loadFromHTML(document.querySelectorAll("#book .page"));
-    state.pageFlip = pageFlip;
-
-    pageFlip.on("flip", function (e) {
-      state.currentPage = e.data + 1;
-      updatePageUI();
-      showSettleLabel();
-    });
-
-    pageFlip.on("changeState", function (e) {
-      var container = document.getElementById("book");
-      if (e.data === "flipping" || e.data === "user_fold" || e.data === "fold_corner") {
-        container.classList.add("is-flipping");
+  /* ---------- structure ---------- */
+  function buildGroups(pages) {
+    const groups = [];
+    let cur = null;
+    let seenSection = false;
+    for (const p of pages) {
+      if (p.kind === "section") {
+        seenSection = true;
+        cur = { name: p.title, kind: "section", start: p.n, items: [p] };
+        groups.push(cur);
+      } else if (p.kind === "product") {
+        if (!cur || cur.kind !== "section") {
+          cur = { name: "Products", kind: "section", start: p.n, items: [] };
+          groups.push(cur);
+        }
+        cur.items.push(p);
       } else {
-        container.classList.remove("is-flipping");
+        const name = seenSection ? "Customers & Credentials" : "Introduction";
+        if (!cur || cur.name !== name) {
+          cur = { name, kind: "chapter", start: p.n, items: [] };
+          groups.push(cur);
+        }
+        cur.items.push(p);
       }
-    });
-
-    updatePageUI();
-    wireNav();
+    }
+    groups.forEach((g) => { g.end = g.items[g.items.length - 1].n; });
+    return groups;
   }
 
-  function updatePageUI() {
-    var current = state.currentPage;
-    var total = state.total;
-    document.getElementById("page-counter").textContent = current + " / " + total;
-    document.getElementById("page-counter").style.display = "inline";
+  const page = (n) => DATA.pages[n - 1];
 
-    var pct = total > 1 ? ((current - 1) / (total - 1)) * 100 : 0;
-    document.getElementById("progress-rail-fill").style.width = pct + "%";
-    document.getElementById("progress-rail-handle").style.left = pct + "%";
-
-    document.getElementById("nav-prev").disabled = current <= 1;
-    document.getElementById("nav-next").disabled = current >= total;
-
-    document.getElementById("page-settle-label").textContent =
-      "Page " + current + " of " + total;
+  function visiblePages(idx = S.idx) {
+    const n = idx + 1;
+    if (!S.spread || idx === 0) return [n];
+    const left = idx % 2 === 1 ? n : n - 1;
+    return left + 1 <= S.total ? [left, left + 1] : [left];
   }
-
-  function showSettleLabel() {
-    var label = document.getElementById("page-settle-label");
-    label.classList.remove("show");
-    clearTimeout(state.settleTimer);
-    // allow reflow before re-triggering
-    requestAnimationFrame(function () {
-      requestAnimationFrame(function () {
-        label.classList.add("show");
-      });
-    });
-    state.settleTimer = setTimeout(function () {
-      label.classList.remove("show");
-    }, 2200);
+  function primaryPage(vis) {
+    if (S.focus && vis.includes(S.focus)) return page(S.focus);
+    const ps = vis.map(page);
+    return ps.find((p) => p.kind === "product") || ps.find((p) => p.kind === "section") || ps[0];
   }
+  const rangeLabel = (vis) => (vis.length > 1 ? `${vis[0]}–${vis[1]}` : String(vis[0]));
 
-  function wireNav() {
-    document.getElementById("nav-prev").addEventListener("click", function () {
-      state.pageFlip.flipPrev();
-    });
-    document.getElementById("nav-next").addEventListener("click", function () {
-      state.pageFlip.flipNext();
-    });
-    document.getElementById("tap-left").addEventListener("click", function () {
-      state.pageFlip.flipPrev();
-    });
-    document.getElementById("tap-right").addEventListener("click", function () {
-      state.pageFlip.flipNext();
-    });
+  /* ---------- static content ---------- */
+  function fillStatic() {
+    const products = DATA.pages.filter((p) => p.kind === "product").length;
+    const chapters = S.groups.filter((g) => g.kind === "section").length;
+    const values = {
+      machines: products,
+      chapters,
+      years: new Date().getFullYear() - FOUNDED,
+      pages: S.total
+    };
+    qsa("[data-stat]").forEach((el) => { el.textContent = values[el.dataset.stat]; });
+    $("year").textContent = new Date().getFullYear();
+    $("rail").setAttribute("aria-valuemax", S.total);
 
-    document.addEventListener("keydown", function (e) {
-      if (isOverlayOpen()) return;
-      if (e.key === "ArrowLeft") state.pageFlip.flipPrev();
-      if (e.key === "ArrowRight") state.pageFlip.flipNext();
-    });
+    const cover = $("book3d-cover");
+    cover.src = page(1).src;
+    cover.alt = page(1).title;
 
-    var rail = document.getElementById("progress-rail");
-    rail.addEventListener("click", function (e) {
-      var rect = rail.getBoundingClientRect();
-      var ratio = (e.clientX - rect.left) / rect.width;
-      ratio = Math.max(0, Math.min(1, ratio));
-      var target = Math.round(ratio * (state.total - 1)) + 1;
-      state.pageFlip.turnToPage(target - 1);
+    const cats = $("cats");
+    S.groups.forEach((g, gi) => {
+      if (g.kind !== "section") return;
+      cats.appendChild(h("a", { class: "cat-chip", href: "#chapter-" + (gi + 1), text: g.name }));
     });
   }
 
-  function isOverlayOpen() {
-    return document.getElementById("toc-drawer").classList.contains("open") ||
-      document.getElementById("zoom-overlay").classList.contains("open");
+  /* ---------- book DOM ---------- */
+  function buildBook() {
+    const book = $("book");
+    S.pageEls = DATA.pages.map((p) => {
+      const img = h("img", { alt: p.title, "data-src": p.src, draggable: "false", decoding: "async" });
+      const face = h("div", { class: "page-face is-loading " + (p.n % 2 ? "right" : "left") }, [
+        img,
+        h("span", { class: "page-grain" }),
+        h("span", { class: "gutter" }),
+        h("span", { class: "page-sheen" })
+      ]);
+      img.addEventListener("load", () => face.classList.remove("is-loading"), { once: true });
+      const el = h("div", { class: "page", "data-density": p.n === 1 || p.n === S.total ? "hard" : "soft" }, [face]);
+      book.appendChild(el);
+      return el;
+    });
   }
 
-  /* ---------- TOC drawer ---------- */
-  function buildToc() {
-    var grid = document.getElementById("toc-grid");
-    for (var i = 1; i <= state.total; i++) {
-      (function (n) {
-        var thumb = document.createElement("div");
-        thumb.className = "toc-thumb";
-        var img = document.createElement("img");
-        img.loading = "lazy";
-        img.src = pageUrl(n);
-        img.alt = "Page " + n + " thumbnail";
-        var tag = document.createElement("span");
-        tag.className = "toc-num";
-        tag.textContent = n;
-        thumb.appendChild(img);
-        thumb.appendChild(tag);
-        thumb.addEventListener("click", function () {
-          state.pageFlip.turnToPage(n - 1);
-          closeToc();
-        });
-        grid.appendChild(thumb);
-      })(i);
+  function loadPage(n) {
+    if (n < 1 || n > S.total) return;
+    const img = S.pageEls[n - 1].querySelector("img");
+    if (!img.getAttribute("src")) img.src = img.dataset.src;
+  }
+  function loadAround(n) {
+    for (let i = n - 3; i <= n + 6; i++) loadPage(i);
+  }
+  function trickleLoad() {
+    const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 150));
+    let n = 1;
+    const step = () => {
+      while (n <= S.total && S.pageEls[n - 1].querySelector("img").getAttribute("src")) n++;
+      if (n > S.total) return;
+      const img = S.pageEls[n - 1].querySelector("img");
+      img.addEventListener("load", () => idle(step), { once: true });
+      img.addEventListener("error", () => idle(step), { once: true });
+      img.src = img.dataset.src;
+    };
+    idle(step);
+  }
+
+  /* ---------- sizing: fit the book to whatever box the tray gives us ---------- */
+  function computeLayout() {
+    const tray = $("tray");
+    const cs = getComputedStyle(tray);
+    const w = Math.max(160, tray.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - 24);
+    const hgt = Math.max(160, tray.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom));
+    const r = DATA.ratio;
+    const spreadH = Math.min(hgt, w / (2 * r));
+    const singleH = Math.min(hgt, w / r);
+    const spread = window.innerWidth >= 700 && spreadH >= singleH * 0.72;
+    const pageH = Math.floor(spread ? spreadH : singleH);
+    const pageW = Math.floor(pageH * r);
+    return { spread, pageW, pageH, wrapW: spread ? pageW * 2 : pageW };
+  }
+
+  function layout() {
+    const L = computeLayout();
+    const wrap = $("book-wrap");
+    wrap.style.width = L.wrapW + "px";
+    wrap.style.height = L.pageH + "px";
+    if (S.flip) {
+      const st = typeof S.flip.getSettings === "function" ? S.flip.getSettings() : null;
+      // page-flip goes single-page when its box is narrower than 2 × minWidth.
+      if (st) { st.minWidth = Math.round(L.pageW * 0.75); st.maxWidth = 100000; st.maxHeight = 100000; }
+      try { S.flip.update(); } catch (e) {}
+    }
+    syncShell();
+  }
+  function scheduleLayout() {
+    cancelAnimationFrame(S.layoutRaf);
+    S.layoutRaf = requestAnimationFrame(layout);
+  }
+
+  function syncShell() {
+    const block = document.querySelector("#book .stf__block");
+    const wrapper = document.querySelector("#book .stf__wrapper");
+    if (!block || !wrapper) return;
+    const bw = block.offsetWidth;
+    const bh = block.offsetHeight;
+    if (!bw || !bh) return;
+
+    const spread = !wrapper.classList.contains("--portrait");
+    if (spread !== S.spread) {
+      S.spread = spread;
+      updateUI();
+    }
+    document.body.classList.toggle("is-spread", spread);
+    document.body.classList.toggle("is-single", !spread);
+
+    const vis = visiblePages();
+    const coverAlone = spread && vis.length === 1 && vis[0] === 1;
+    const backAlone = spread && vis.length === 1 && vis[0] === S.total && S.total > 1;
+    const half = bw / 2;
+
+    const shell = $("book-shell");
+    shell.style.top = "0px";
+    shell.style.height = bh + "px";
+    shell.style.left = (coverAlone ? half : 0) + "px";
+    shell.style.width = (spread && (coverAlone || backAlone) ? half : bw) + "px";
+
+    $("book-slide").style.transform = coverAlone ? `translateX(${-half / 2}px)` : backAlone ? `translateX(${half / 2}px)` : "none";
+
+    const spine = $("spine");
+    spine.classList.toggle("is-on", spread && vis.length > 1);
+    spine.style.left = half - bw * 0.04 + "px";
+    spine.style.width = bw * 0.08 + "px";
+    spine.style.height = bh + "px";
+
+    const maxEdge = spread ? clamp(bw * 0.011, 5, 15) : 0;
+    const read = (vis[0] - 1) / Math.max(1, S.total - 1);
+    $("edge-left").style.width = (coverAlone ? 0 : 2 + read * maxEdge) + "px";
+    $("edge-right").style.width = (backAlone ? 0 : 2 + (1 - read) * maxEdge) + "px";
+  }
+
+  /* ---------- page-flip ---------- */
+  function initFlip(startIdx) {
+    const L = computeLayout();
+    const wrap = $("book-wrap");
+    wrap.style.width = L.wrapW + "px";
+    wrap.style.height = L.pageH + "px";
+
+    S.flip = new St.PageFlip($("book"), {
+      width: L.pageW,
+      height: L.pageH,
+      size: "stretch",
+      minWidth: Math.round(L.pageW * 0.75),
+      maxWidth: 100000,
+      minHeight: 100,
+      maxHeight: 100000,
+      startPage: startIdx,
+      showCover: true,
+      usePortrait: true,
+      autoSize: true,
+      drawShadow: true,
+      maxShadowOpacity: 0.5,
+      flippingTime: 900,
+      swipeDistance: 24,
+      mobileScrollSupport: true,
+      useMouseEvents: true,
+      showPageCorners: true
+    });
+    S.flip.loadFromHTML(S.pageEls);
+    S.idx = S.flip.getCurrentPageIndex();
+
+    S.flip.on("flip", (e) => {
+      S.idx = e.data;
+      onPageChange(true);
+    });
+    S.flip.on("changeState", (e) => {
+      document.body.classList.toggle("is-turning", e.data !== "read");
+      if (e.data === "flipping") playFlip();
+      if (e.data === "user_fold" || e.data === "flipping") dismissHint();
+      if (e.data === "read") requestAnimationFrame(syncShell);
+    });
+    S.flip.on("changeOrientation", () => requestAnimationFrame(() => { syncShell(); updateUI(); }));
+
+    requestAnimationFrame(() => { layout(); onPageChange(false); });
+  }
+
+  function onPageChange(fromTurn) {
+    const vis = visiblePages();
+    loadAround(vis[0]);
+    updateUI();
+    syncShell();
+    if (fromTurn) {
+      showSettle(vis);
+      history.replaceState(null, "", "#p=" + vis[0]);
     }
   }
 
-  function openToc() {
-    document.getElementById("toc-drawer").classList.add("open");
-    document.getElementById("toc-drawer").setAttribute("aria-hidden", "false");
-    document.getElementById("drawer-scrim").classList.add("open");
-  }
-  function closeToc() {
-    document.getElementById("toc-drawer").classList.remove("open");
-    document.getElementById("toc-drawer").setAttribute("aria-hidden", "true");
-    document.getElementById("drawer-scrim").classList.remove("open");
+  function next() { if (S.flip) { S.focus = 0; S.flip.flipNext("bottom"); } }
+  function prev() { if (S.flip) { S.focus = 0; S.flip.flipPrev("bottom"); } }
+  function goTo(n) {
+    if (!S.flip) return;
+    n = clamp(n, 1, S.total);
+    S.focus = n;
+    if (visiblePages().includes(n)) { updateUI(); return; }
+    loadAround(n);
+    S.flip.flip(n - 1, "top");
   }
 
-  /* ---------- Zoom overlay ---------- */
-  var zoom = { scale: 1, x: 0, y: 0, dragging: false, lastX: 0, lastY: 0, pinchDist: 0 };
+  function updateUI() {
+    if (!S.total) return;
+    const vis = visiblePages();
+    const last = vis[vis.length - 1];
+    const main = primaryPage(vis);
 
-  function openZoom() {
-    var img = document.getElementById("zoom-image");
-    img.src = pageUrl(state.currentPage);
-    zoom.scale = 1; zoom.x = 0; zoom.y = 0;
-    applyZoomTransform();
-    document.getElementById("zoom-overlay").classList.add("open");
-    document.getElementById("zoom-overlay").setAttribute("aria-hidden", "false");
+    $("counter").textContent = `${rangeLabel(vis)} / ${S.total}`;
+    $("counter-sub").textContent = main.label ? `${main.label} · ${main.title}` : main.title;
+
+    const frac = S.total > 1 ? (last - 1) / (S.total - 1) : 0;
+    $("rail-fill").style.width = frac * 100 + "%";
+    $("rail-knob").style.left = frac * 100 + "%";
+    $("rail").setAttribute("aria-valuenow", vis[0]);
+
+    const atStart = vis[0] <= 1;
+    const atEnd = last >= S.total;
+    ["btn-prev", "btn-first", "side-prev"].forEach((id) => { $(id).disabled = atStart; });
+    ["btn-next", "btn-last", "side-next"].forEach((id) => { $(id).disabled = atEnd; });
+
+    qsa(".dc-item, .pg-item").forEach((el) => {
+      el.classList.toggle("is-current", vis.includes(+el.dataset.page));
+    });
+  }
+
+  function showSettle(vis) {
+    const el = $("settle");
+    el.textContent = `${vis.length > 1 ? "Pages" : "Page"} ${rangeLabel(vis)} of ${S.total}`;
+    el.classList.remove("is-on");
+    clearTimeout(S.settleTimer);
+    requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add("is-on")));
+    S.settleTimer = setTimeout(() => el.classList.remove("is-on"), 2600);
+  }
+
+  /* ---------- hint ---------- */
+  function showHint() {
+    if (S.hintDone) return;
+    $("hint-text").textContent = coarse
+      ? "Touch & hold a page, then drag — or swipe"
+      : "Click & hold a page, then drag left or right";
+    $("hint").classList.add("is-on");
+    setTimeout(dismissHint, 7000);
+  }
+  function dismissHint() {
+    if (S.hintDone) return;
+    S.hintDone = true;
+    $("hint").classList.remove("is-on");
+  }
+
+  /* ---------- rail ---------- */
+  function wireRail() {
+    const rail = $("rail");
+    const tip = $("rail-tip");
+    const ticks = $("rail-ticks");
+    S.groups.forEach((g) => {
+      if (g.kind !== "section" || S.total < 2) return;
+      ticks.appendChild(h("i", { style: `left:${((g.start - 1) / (S.total - 1)) * 100}%` }));
+    });
+
+    const pageAt = (clientX) => {
+      const r = rail.getBoundingClientRect();
+      const f = clamp((clientX - r.left) / r.width, 0, 1);
+      return { n: Math.round(f * (S.total - 1)) + 1, f };
+    };
+    const showTip = (clientX) => {
+      const { n, f } = pageAt(clientX);
+      const p = page(n);
+      $("rail-tip-img").src = p.thumb;
+      const text = $("rail-tip-text");
+      text.textContent = "";
+      text.appendChild(h("b", { text: `Page ${n}` }));
+      text.appendChild(document.createTextNode(p.label ? `${p.label} · ${p.title}` : p.title));
+      const rw = rail.clientWidth;
+      const half = Math.min(130, rw / 2);
+      tip.style.left = clamp(f * rw, half, rw - half) + "px";
+      tip.classList.add("is-on");
+      return n;
+    };
+
+    let dragging = false;
+    rail.addEventListener("pointermove", (e) => {
+      if (e.pointerType === "mouse" || dragging) {
+        const n = showTip(e.clientX);
+        if (dragging) {
+          const f = (n - 1) / (S.total - 1);
+          $("rail-fill").style.width = f * 100 + "%";
+          $("rail-knob").style.left = f * 100 + "%";
+        }
+      }
+    });
+    rail.addEventListener("pointerleave", () => { if (!dragging) tip.classList.remove("is-on"); });
+    rail.addEventListener("pointerdown", (e) => {
+      dragging = true;
+      rail.setPointerCapture(e.pointerId);
+      rail.classList.add("is-dragging");
+      showTip(e.clientX);
+    });
+    const end = (e) => {
+      if (!dragging) return;
+      dragging = false;
+      rail.classList.remove("is-dragging");
+      tip.classList.remove("is-on");
+      const n = pageAt(e.clientX).n;
+      updateUI();
+      goTo(n);
+    };
+    rail.addEventListener("pointerup", end);
+    rail.addEventListener("pointercancel", () => { dragging = false; rail.classList.remove("is-dragging"); tip.classList.remove("is-on"); updateUI(); });
+    rail.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowRight" || e.key === "ArrowUp") { e.preventDefault(); next(); }
+      if (e.key === "ArrowLeft" || e.key === "ArrowDown") { e.preventDefault(); prev(); }
+    });
+  }
+
+  /* ---------- drawer ---------- */
+  const itemCaption = (p) => (p.kind === "product" ? p.label : p.kind === "section" ? "Chapter opener" : "Chapter");
+  const searchText = (p, g) => `${p.title} ${p.label || ""} ${g ? g.name : ""} page ${p.n}`.toLowerCase();
+
+  function buildDrawer() {
+    const panel = $("panel-chronicle");
+    S.groups.forEach((g, gi) => {
+      const list = h("div", { class: "dc-items" });
+      g.items.forEach((p) => {
+        list.appendChild(h("button", {
+          class: "dc-item", type: "button", "data-page": p.n, "data-search": searchText(p, g),
+          onclick: () => { closeDrawer(); goTo(p.n); }
+        }, [
+          h("img", { src: p.thumb, alt: "", loading: "lazy", width: "44", height: "62" }),
+          h("span", {}, [h("small", { text: itemCaption(p) }), h("strong", { text: p.title })]),
+          h("span", { class: "dc-page", text: pad2(p.n) })
+        ]));
+      });
+      panel.appendChild(h("section", { class: "dc-group" }, [
+        h("header", { class: "dc-head" }, [
+          h("span", { class: "dc-num", text: pad2(gi + 1) }),
+          h("span", { class: "dc-name", text: g.name }),
+          h("span", { class: "dc-range", text: `p. ${g.start}–${g.end}` })
+        ]),
+        list
+      ]));
+    });
+
+    const grid = $("page-grid");
+    DATA.pages.forEach((p) => {
+      grid.appendChild(h("button", {
+        class: "pg-item", type: "button", "data-page": p.n, "data-search": searchText(p),
+        "aria-label": `Page ${p.n}: ${p.title}`,
+        onclick: () => { closeDrawer(); goTo(p.n); }
+      }, [h("img", { src: p.thumb, alt: "", loading: "lazy", width: "120", height: "170" }), h("span", { text: pad2(p.n) })]));
+    });
+
+    qsa(".tab").forEach((tab) => tab.addEventListener("click", () => setTab(tab.dataset.tab)));
+    $("drawer-search").addEventListener("input", filterDrawer);
+    $("drawer-close").addEventListener("click", closeDrawer);
+    $("scrim").addEventListener("click", closeDrawer);
+    $("btn-chronicle").addEventListener("click", () => openDrawer("chronicle"));
+    $("btn-grid").addEventListener("click", () => openDrawer("pages"));
+    updateUI();
+  }
+
+  function setTab(name) {
+    qsa(".tab").forEach((t) => {
+      const on = t.dataset.tab === name;
+      t.classList.toggle("is-active", on);
+      t.setAttribute("aria-selected", on);
+    });
+    $("panel-chronicle").classList.toggle("is-active", name === "chronicle");
+    $("panel-pages").classList.toggle("is-active", name === "pages");
+    filterDrawer();
+  }
+  function filterDrawer() {
+    const q = $("drawer-search").value.trim().toLowerCase();
+    let shown = 0;
+    const activePanel = document.querySelector(".drawer-panel.is-active");
+    qsa("[data-search]", activePanel).forEach((el) => {
+      const hit = !q || el.dataset.search.includes(q);
+      el.hidden = !hit;
+      if (hit) shown++;
+    });
+    qsa(".dc-group", activePanel).forEach((g) => { g.hidden = !g.querySelector("[data-search]:not([hidden])"); });
+    $("drawer-empty").hidden = shown > 0;
+  }
+  function openDrawer(tab) {
+    setTab(tab);
+    $("drawer").classList.add("is-open");
+    $("drawer").setAttribute("aria-hidden", "false");
+    $("scrim").classList.add("is-open");
+    const cur = document.querySelector(".drawer-panel.is-active .is-current");
+    if (cur) cur.scrollIntoView({ block: "center" });
+    if (!coarse) setTimeout(() => $("drawer-search").focus({ preventScroll: true }), 350);
+  }
+  function closeDrawer() {
+    $("drawer").classList.remove("is-open");
+    $("drawer").setAttribute("aria-hidden", "true");
+    $("scrim").classList.remove("is-open");
+  }
+  const drawerOpen = () => $("drawer").classList.contains("is-open");
+
+  /* ---------- Chronicle section ---------- */
+  function buildChronicle() {
+    const root = $("timeline");
+    S.groups.forEach((g, gi) => {
+      const products = g.items.filter((p) => p.kind === "product");
+      const cards = products.length ? products : g.items;
+      const grid = h("div", { class: "tl-grid" });
+      cards.forEach((p) => {
+        grid.appendChild(h("button", {
+          class: "tl-card", type: "button", "data-search": searchText(p, g),
+          onclick: () => openInReader(p.n)
+        }, [
+          h("span", { class: "tl-thumb" }, [h("img", { src: p.thumb, alt: "", loading: "lazy", width: "320", height: "240" })]),
+          h("span", { class: "tl-meta" }, [h("small", { text: p.kind === "product" ? p.label : "Chapter" }), h("strong", { text: p.title })]),
+          h("span", { class: "tl-foot" }, [h("span", { text: "Page " + pad2(p.n) }), icon("arrow")])
+        ]));
+      });
+      const count = cards.length;
+      const noun = g.kind === "section" ? (count === 1 ? "entry" : "entries") : count === 1 ? "chapter" : "chapters";
+      root.appendChild(h("article", { class: "tl-group neu", id: "chapter-" + (gi + 1) }, [
+        h("div", { class: "tl-side" }, [
+          h("span", { class: "tl-num", text: pad2(gi + 1) }),
+          h("h3", { text: g.name }),
+          h("p", { text: `Pages ${g.start}–${g.end} · ${count} ${noun}` }),
+          h("button", { class: "btn-neu sm", type: "button", onclick: () => openInReader(g.start) }, ["Open chapter", icon("arrow")])
+        ]),
+        grid
+      ]));
+    });
+
+    $("chronicle-search").addEventListener("input", () => {
+      const q = $("chronicle-search").value.trim().toLowerCase();
+      let shown = 0;
+      qsa(".tl-card", root).forEach((c) => {
+        const hit = !q || c.dataset.search.includes(q);
+        c.hidden = !hit;
+        if (hit) shown++;
+      });
+      qsa(".tl-group", root).forEach((g) => { g.hidden = !g.querySelector(".tl-card:not([hidden])"); });
+      $("chronicle-empty").hidden = shown > 0;
+    });
+  }
+
+  function openInReader(n) {
+    const reader = $("catalogue");
+    const top = reader.getBoundingClientRect().top + window.scrollY;
+    const far = Math.abs(window.scrollY - top) > 40;
+    window.scrollTo({ top, behavior: "smooth" });
+    setTimeout(() => goTo(n), far ? 750 : 0);
+  }
+
+  /* ---------- zoom ---------- */
+  const Z = { open: false, n: 1, s: 1, fit: 1, x: 0, y: 0, iw: 0, ih: 0, pts: new Map(), pinch: null, lastTap: 0, moved: 0 };
+
+  function openZoom(n) {
+    Z.n = n || primaryPage(visiblePages()).n;
+    Z.open = true;
+    $("zoom").classList.add("is-open");
+    $("zoom").setAttribute("aria-hidden", "false");
+    loadZoom();
   }
   function closeZoom() {
-    document.getElementById("zoom-overlay").classList.remove("open");
-    document.getElementById("zoom-overlay").setAttribute("aria-hidden", "true");
+    Z.open = false;
+    $("zoom").classList.remove("is-open");
+    $("zoom").setAttribute("aria-hidden", "true");
   }
-  function applyZoomTransform() {
-    var img = document.getElementById("zoom-image");
-    img.style.transform = "translate(-50%,-50%) translate(" + zoom.x + "px," + zoom.y + "px) scale(" + zoom.scale + ")";
+  function loadZoom() {
+    const p = page(Z.n);
+    const img = $("zoom-img");
+    $("zoom-title").textContent = `Page ${Z.n} · ${p.title}`;
+    $("zoom-prev").disabled = Z.n <= 1;
+    $("zoom-next").disabled = Z.n >= S.total;
+    const ready = () => {
+      Z.iw = img.naturalWidth;
+      Z.ih = img.naturalHeight;
+      img.style.width = Z.iw + "px";
+      img.style.height = Z.ih + "px";
+      fitZoom();
+    };
+    img.onload = ready;
+    img.alt = p.title;
+    img.src = p.src;
+    if (img.complete && img.naturalWidth) ready();
   }
-  function clampScale(s) {
-    return Math.max(0.6, Math.min(6, s));
+  function fitZoom() {
+    if (!Z.iw) return;
+    const st = $("zoom-stage");
+    const barSpace = 96;
+    Z.fit = Math.min((st.clientWidth - 32) / Z.iw, (st.clientHeight - barSpace - 32) / Z.ih);
+    Z.s = Z.fit;
+    Z.x = (st.clientWidth - Z.iw * Z.s) / 2;
+    Z.y = (st.clientHeight - barSpace - Z.ih * Z.s) / 2 + 12;
+    applyZoom();
+  }
+  function applyZoom() {
+    $("zoom-img").style.transform = `translate(${Z.x}px, ${Z.y}px) scale(${Z.s})`;
+    $("zoom-level").textContent = Math.round((Z.s / Z.fit) * 100) + "%";
+  }
+  function zoomAt(scale, px, py) {
+    const ns = clamp(scale, Z.fit * 0.8, Z.fit * 6);
+    Z.x = px - (px - Z.x) * (ns / Z.s);
+    Z.y = py - (py - Z.y) * (ns / Z.s);
+    Z.s = ns;
+    applyZoom();
+  }
+  function stageCenter() {
+    const st = $("zoom-stage");
+    return { x: st.clientWidth / 2, y: (st.clientHeight - 96) / 2 };
   }
 
   function wireZoom() {
-    var viewport = document.getElementById("zoom-viewport");
+    const stage = $("zoom-stage");
+    const local = (x, y) => {
+      const r = stage.getBoundingClientRect();
+      return { x: x - r.left, y: y - r.top };
+    };
+    $("btn-zoom").addEventListener("click", () => openZoom());
+    $("zoom-close").addEventListener("click", closeZoom);
+    $("zoom-fit").addEventListener("click", fitZoom);
+    $("zoom-in").addEventListener("click", () => { const c = stageCenter(); zoomAt(Z.s * 1.35, c.x, c.y); });
+    $("zoom-out").addEventListener("click", () => { const c = stageCenter(); zoomAt(Z.s / 1.35, c.x, c.y); });
+    $("zoom-prev").addEventListener("click", () => { if (Z.n > 1) { Z.n--; loadZoom(); } });
+    $("zoom-next").addEventListener("click", () => { if (Z.n < S.total) { Z.n++; loadZoom(); } });
 
-    document.getElementById("btn-zoom").addEventListener("click", openZoom);
-    document.getElementById("btn-zoom-close").addEventListener("click", closeZoom);
-    document.getElementById("btn-zoom-in").addEventListener("click", function () {
-      zoom.scale = clampScale(zoom.scale + 0.4); applyZoomTransform();
-    });
-    document.getElementById("btn-zoom-out").addEventListener("click", function () {
-      zoom.scale = clampScale(zoom.scale - 0.4); applyZoomTransform();
-    });
-
-    viewport.addEventListener("wheel", function (e) {
+    stage.addEventListener("wheel", (e) => {
       e.preventDefault();
-      var delta = e.deltaY > 0 ? -0.15 : 0.15;
-      zoom.scale = clampScale(zoom.scale + delta);
-      applyZoomTransform();
+      const p = local(e.clientX, e.clientY);
+      zoomAt(Z.s * Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.0018)), p.x, p.y);
     }, { passive: false });
 
-    viewport.addEventListener("mousedown", function (e) {
-      zoom.dragging = true;
-      viewport.classList.add("dragging");
-      zoom.lastX = e.clientX; zoom.lastY = e.clientY;
-    });
-    window.addEventListener("mousemove", function (e) {
-      if (!zoom.dragging) return;
-      zoom.x += e.clientX - zoom.lastX;
-      zoom.y += e.clientY - zoom.lastY;
-      zoom.lastX = e.clientX; zoom.lastY = e.clientY;
-      applyZoomTransform();
-    });
-    window.addEventListener("mouseup", function () {
-      zoom.dragging = false;
-      viewport.classList.remove("dragging");
-    });
-
-    // touch: single-finger pan, two-finger pinch
-    viewport.addEventListener("touchstart", function (e) {
-      if (e.touches.length === 1) {
-        zoom.dragging = true;
-        zoom.lastX = e.touches[0].clientX;
-        zoom.lastY = e.touches[0].clientY;
-      } else if (e.touches.length === 2) {
-        zoom.dragging = false;
-        zoom.pinchDist = touchDist(e.touches);
+    stage.addEventListener("pointerdown", (e) => {
+      stage.setPointerCapture(e.pointerId);
+      Z.pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      Z.moved = 0;
+      if (Z.pts.size === 2) {
+        const [a, b] = [...Z.pts.values()];
+        Z.pinch = { d: Math.hypot(a.x - b.x, a.y - b.y) };
       }
-    }, { passive: true });
-
-    viewport.addEventListener("touchmove", function (e) {
-      if (e.touches.length === 1 && zoom.dragging) {
-        var t = e.touches[0];
-        zoom.x += t.clientX - zoom.lastX;
-        zoom.y += t.clientY - zoom.lastY;
-        zoom.lastX = t.clientX; zoom.lastY = t.clientY;
-        applyZoomTransform();
-      } else if (e.touches.length === 2) {
-        var d = touchDist(e.touches);
-        var ratio = d / (zoom.pinchDist || d);
-        zoom.scale = clampScale(zoom.scale * ratio);
-        zoom.pinchDist = d;
-        applyZoomTransform();
-      }
-    }, { passive: true });
-
-    viewport.addEventListener("touchend", function () {
-      zoom.dragging = false;
+      stage.classList.add("is-grabbing");
     });
+    stage.addEventListener("pointermove", (e) => {
+      const prevPt = Z.pts.get(e.pointerId);
+      if (!prevPt) return;
+      const cur = { x: e.clientX, y: e.clientY };
+      Z.pts.set(e.pointerId, cur);
+      if (Z.pts.size === 2 && Z.pinch) {
+        const [a, b] = [...Z.pts.values()];
+        const d = Math.hypot(a.x - b.x, a.y - b.y);
+        const mid = local((a.x + b.x) / 2, (a.y + b.y) / 2);
+        zoomAt(Z.s * (d / Z.pinch.d), mid.x, mid.y);
+        Z.pinch.d = d;
+        Z.moved += 10;
+      } else if (Z.pts.size === 1) {
+        Z.x += cur.x - prevPt.x;
+        Z.y += cur.y - prevPt.y;
+        Z.moved += Math.abs(cur.x - prevPt.x) + Math.abs(cur.y - prevPt.y);
+        applyZoom();
+      }
+    });
+    const release = (e) => {
+      if (!Z.pts.has(e.pointerId)) return;
+      Z.pts.delete(e.pointerId);
+      if (Z.pts.size < 2) Z.pinch = null;
+      if (!Z.pts.size) stage.classList.remove("is-grabbing");
+      if (e.type === "pointerup" && Z.moved < 6) {
+        const now = Date.now();
+        if (now - Z.lastTap < 320) {
+          const p = local(e.clientX, e.clientY);
+          if (Z.s > Z.fit * 1.05) fitZoom();
+          else zoomAt(Z.fit * 2.4, p.x, p.y);
+          Z.lastTap = 0;
+        } else Z.lastTap = now;
+      }
+    };
+    stage.addEventListener("pointerup", release);
+    stage.addEventListener("pointercancel", release);
+  }
 
-    function touchDist(touches) {
-      var dx = touches[0].clientX - touches[1].clientX;
-      var dy = touches[0].clientY - touches[1].clientY;
-      return Math.sqrt(dx * dx + dy * dy);
+  /* ---------- sound ---------- */
+  function ensureAudio() {
+    if (S.audio) return S.audio;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    const ctx = new AC();
+    const len = Math.floor(ctx.sampleRate * 0.6);
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    let last = 0;
+    for (let i = 0; i < len; i++) {
+      last = (last + 0.045 * (Math.random() * 2 - 1)) / 1.045;
+      d[i] = last * 3.4;
+    }
+    S.audio = { ctx, buf };
+    return S.audio;
+  }
+  function playFlip() {
+    if (!S.sound) return;
+    const a = ensureAudio();
+    if (!a) return;
+    const { ctx, buf } = a;
+    if (ctx.state === "suspended") ctx.resume();
+    const t = ctx.currentTime;
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.playbackRate.value = 0.85 + Math.random() * 0.3;
+    const band = ctx.createBiquadFilter();
+    band.type = "bandpass";
+    band.Q.value = 0.8;
+    band.frequency.setValueAtTime(3000, t);
+    band.frequency.exponentialRampToValueAtTime(650, t + 0.45);
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(0.45, t + 0.06);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.52);
+    src.connect(band).connect(gain).connect(ctx.destination);
+    src.start(t);
+    src.stop(t + 0.56);
+  }
+  function setSound(on) {
+    S.sound = on;
+    const btn = $("btn-sound");
+    btn.setAttribute("aria-pressed", on);
+    btn.dataset.tip = on ? "Page sound on" : "Page sound off";
+    setIcon(btn, on ? "sound" : "mute");
+    store.set("ems-sound", on ? "1" : "0");
+  }
+
+  /* ---------- share, enquire, toast ---------- */
+  function toast(msg) {
+    const el = $("toast");
+    el.textContent = msg;
+    el.classList.add("is-on");
+    clearTimeout(S.toastTimer);
+    S.toastTimer = setTimeout(() => el.classList.remove("is-on"), 2600);
+  }
+  async function share() {
+    const vis = visiblePages();
+    const p = primaryPage(vis);
+    const url = `${location.origin}${location.pathname}#p=${p.n}`;
+    if (navigator.share && coarse) {
+      try { await navigator.share({ title: `Esteem Multi Systems — ${p.title}`, url }); } catch (e) {}
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      toast(`Link to page ${p.n} copied`);
+    } catch (e) {
+      toast(url);
     }
   }
+  function enquire() {
+    const vis = visiblePages();
+    const p = primaryPage(vis);
+    const where = vis.length > 1 ? `pages ${vis[0]}–${vis[1]}` : `page ${vis[0]}`;
+    const topic = p.kind === "product" || p.kind === "section" ? p.title : "your product catalogue";
+    const subject = `Enquiry: ${topic} (catalogue ${where})`;
+    const body = [
+      "Hello Esteem Multi Systems team,",
+      "",
+      `I am viewing ${where} of your catalogue${p.kind === "product" ? ` — ${p.label}: ${p.title}` : ""} and would like to know more.`,
+      "",
+      "Component / part to be processed:",
+      "Required output per hour:",
+      "Plant location:",
+      "",
+      "Please share the specifications and a quotation.",
+      "",
+      "Regards,",
+      ""
+    ].join("\n");
+    window.location.href = `mailto:${EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  }
 
-  /* ---------- Fullscreen ---------- */
+  /* ---------- fullscreen ---------- */
   function wireFullscreen() {
-    document.getElementById("btn-fullscreen").addEventListener("click", function () {
-      if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen().catch(function () {});
-      } else {
-        document.exitFullscreen();
+    const reader = $("catalogue");
+    const btn = $("btn-full");
+    const enabled = document.fullscreenEnabled || document.webkitFullscreenEnabled;
+    if (!enabled) { btn.hidden = true; return; }
+    const current = () => document.fullscreenElement || document.webkitFullscreenElement;
+    btn.addEventListener("click", () => {
+      if (current()) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+      else (reader.requestFullscreen || reader.webkitRequestFullscreen).call(reader);
+    });
+    const sync = () => {
+      const on = !!current();
+      setIcon(btn, on ? "collapse" : "expand");
+      btn.dataset.tip = on ? "Exit fullscreen" : "Fullscreen";
+      scheduleLayout();
+    };
+    document.addEventListener("fullscreenchange", sync);
+    document.addEventListener("webkitfullscreenchange", sync);
+  }
+
+  /* ---------- nav ---------- */
+  function wireNav() {
+    const menuBtn = $("nav-menu");
+    menuBtn.addEventListener("click", () => {
+      const open = document.body.classList.toggle("menu-open");
+      menuBtn.setAttribute("aria-expanded", open);
+    });
+    qsa(".nav-links a").forEach((a) => a.addEventListener("click", () => {
+      document.body.classList.remove("menu-open");
+      menuBtn.setAttribute("aria-expanded", "false");
+    }));
+
+    const reader = $("catalogue");
+    const ids = ["catalogue", "chronicle", "company", "contact"];
+    let ticking = false;
+    const onScroll = () => {
+      ticking = false;
+      const r = reader.getBoundingClientRect();
+      const vh = window.innerHeight;
+      const reading = r.top <= 70 && r.bottom >= vh * 0.6;
+      document.body.classList.toggle("reading", reading);
+      if (reading) document.body.classList.remove("menu-open");
+      let active = null;
+      for (const id of ids) {
+        const b = $(id).getBoundingClientRect();
+        if (b.top <= vh * 0.45 && b.bottom >= vh * 0.45) active = id;
       }
+      qsa("[data-nav]").forEach((a) => a.classList.toggle("is-active", a.dataset.nav === active));
+    };
+    window.addEventListener("scroll", () => {
+      if (!ticking) { ticking = true; requestAnimationFrame(onScroll); }
+    }, { passive: true });
+    onScroll();
+  }
+
+  /* ---------- keyboard ---------- */
+  function wireKeys() {
+    document.addEventListener("keydown", (e) => {
+      if (e.target.closest("input, textarea") && e.key !== "Escape") return;
+      if (Z.open) {
+        const c = stageCenter();
+        if (e.key === "Escape") closeZoom();
+        else if (e.key === "ArrowRight" && Z.n < S.total) { Z.n++; loadZoom(); }
+        else if (e.key === "ArrowLeft" && Z.n > 1) { Z.n--; loadZoom(); }
+        else if (e.key === "+" || e.key === "=") zoomAt(Z.s * 1.3, c.x, c.y);
+        else if (e.key === "-") zoomAt(Z.s / 1.3, c.x, c.y);
+        else if (e.key === "0") fitZoom();
+        return;
+      }
+      if (drawerOpen()) {
+        if (e.key === "Escape") closeDrawer();
+        return;
+      }
+      if (document.body.classList.contains("menu-open") && e.key === "Escape") {
+        document.body.classList.remove("menu-open");
+        return;
+      }
+      if (!S.flip) return;
+      const reading = document.body.classList.contains("reading");
+      if (e.key === "ArrowRight") { e.preventDefault(); next(); }
+      else if (e.key === "ArrowLeft") { e.preventDefault(); prev(); }
+      else if (reading && e.key === "PageDown") { e.preventDefault(); next(); }
+      else if (reading && e.key === "PageUp") { e.preventDefault(); prev(); }
+      else if (reading && e.key === "Home") { e.preventDefault(); goTo(1); }
+      else if (reading && e.key === "End") { e.preventDefault(); goTo(S.total); }
     });
   }
 
-  /* ---------- Enquire ---------- */
-  function buildMailto() {
-    var subject = encodeURIComponent("Enquiry — Esteem Multi Systems Catalogue (Page " + state.currentPage + ")");
-    var body = encodeURIComponent(
-      "Hello Esteem Multi Systems team,\n\n" +
-      "I was viewing page " + state.currentPage + " of your catalogue and would like to enquire about it.\n\n" +
-      "Please share more details / a quotation.\n\nThank you."
-    );
-    return "mailto:" + CONFIG.enquireEmail + "?subject=" + subject + "&body=" + body;
-  }
-  function wireEnquire() {
-    document.getElementById("btn-enquire").addEventListener("click", function () {
-      window.location.href = buildMailto();
-    });
-    document.getElementById("hero-enquire").addEventListener("click", function (e) {
-      e.preventDefault();
-      window.location.href = buildMailto();
-    });
-  }
+  /* ---------- controls ---------- */
+  function wireControls() {
+    $("btn-prev").addEventListener("click", prev);
+    $("btn-next").addEventListener("click", next);
+    $("side-prev").addEventListener("click", prev);
+    $("side-next").addEventListener("click", next);
+    $("btn-first").addEventListener("click", () => goTo(1));
+    $("btn-last").addEventListener("click", () => goTo(S.total));
+    $("btn-share").addEventListener("click", share);
+    $("btn-sound").addEventListener("click", () => setSound(!S.sound));
+    qsa("[data-enquire]").forEach((b) => b.addEventListener("click", enquire));
+    $("book3d").addEventListener("click", () => openInReader(2));
 
-  /* ---------- TOC open/close wiring ---------- */
-  function wireToc() {
-    document.getElementById("btn-toc").addEventListener("click", openToc);
-    document.getElementById("btn-toc-close").addEventListener("click", closeToc);
-    document.getElementById("drawer-scrim").addEventListener("click", function () {
-      closeToc(); closeZoom();
-    });
-  }
+    if ("ResizeObserver" in window) new ResizeObserver(scheduleLayout).observe($("tray"));
+    window.addEventListener("resize", () => { scheduleLayout(); if (Z.open) fitZoom(); });
 
-  /* ---------- Loading screen ---------- */
-  function setLoadingProgress(loaded, total) {
-    var pct = Math.round((loaded / total) * 100);
-    document.getElementById("loading-bar-fill").style.width = pct + "%";
-    document.getElementById("loading-percent").textContent = "Loading catalogue — " + pct + "%";
-  }
-  function hideLoadingScreen() {
-    document.getElementById("loading-screen").classList.add("hidden");
-    var wrap = document.getElementById("book-wrap");
-    wrap.classList.add("entered");
-  }
-
-  /* ---------- Boot ---------- */
-  function boot() {
-    detectPageCount().then(function (total) {
-      state.total = Math.max(total, 1);
-      var urls = [];
-      for (var i = 1; i <= state.total; i++) urls.push(pageUrl(i));
-
-      preloadAll(urls, setLoadingProgress).then(function () {
-        initFlipbook();
-        buildToc();
-        wireZoom();
-        wireFullscreen();
-        wireEnquire();
-        wireToc();
-        setTimeout(hideLoadingScreen, 250);
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((en) => {
+        if (!en.isIntersecting) return;
+        $("book-wrap").classList.add("is-revealed");
+        setTimeout(showHint, 900);
+        io.disconnect();
       });
-    });
+    }, { threshold: 0.3 });
+    io.observe($("tray"));
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", boot);
-  } else {
-    boot();
+  /* ---------- boot ---------- */
+  function preload(src) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      const done = () => resolve();
+      img.onload = done;
+      img.onerror = done;
+      setTimeout(done, 8000);
+      img.src = src;
+    });
   }
+  function progress(f) {
+    const pct = Math.round(f * 100);
+    $("loader-fill").style.width = pct + "%";
+    $("loader-text").textContent = pct + "%";
+  }
+  function startPageFromHash() {
+    const m = location.hash.match(/(?:^#|&)p=(\d+)/);
+    return m ? clamp(parseInt(m[1], 10), 1, S.total) : 0;
+  }
+
+  async function boot() {
+    if (!DATA || !Array.isArray(DATA.pages) || !DATA.pages.length) {
+      $("loader-text").textContent = "Catalogue data missing — run the build.";
+      return;
+    }
+    if (!window.St || !window.St.PageFlip) {
+      $("loader-text").textContent = "Could not load the page-turn engine. Please refresh.";
+      return;
+    }
+
+    S.total = DATA.pages.length;
+    S.groups = buildGroups(DATA.pages);
+    setSound(store.get("ems-sound") !== "0");
+    fillStatic();
+
+    const start = startPageFromHash();
+    const first = new Set([1, 2, 3].filter((n) => n <= S.total));
+    if (start) [start - 1, start, start + 1].forEach((n) => n >= 1 && n <= S.total && first.add(n));
+    const jobs = [...first].map((n) => page(n).src);
+    let done = 0;
+    progress(0.04);
+    await Promise.all([
+      ...jobs.map((src) => preload(src).then(() => progress((++done / (jobs.length + 1)) * 0.96))),
+      document.fonts ? document.fonts.ready.then(() => progress((++done / (jobs.length + 1)) * 0.96)) : null
+    ]);
+    progress(1);
+
+    buildBook();
+    [...first].forEach(loadPage);
+    initFlip(start ? start - 1 : 0);
+    buildDrawer();
+    buildChronicle();
+    wireRail();
+    wireZoom();
+    wireFullscreen();
+    wireNav();
+    wireKeys();
+    wireControls();
+
+    setTimeout(() => {
+      $("loader").classList.add("is-done");
+      if (start) {
+        const reader = $("catalogue");
+        window.scrollTo({ top: reader.getBoundingClientRect().top + window.scrollY, behavior: "auto" });
+      }
+    }, 250);
+    setTimeout(trickleLoad, 1800);
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+  else boot();
 })();
