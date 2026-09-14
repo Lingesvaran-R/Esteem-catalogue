@@ -1,8 +1,8 @@
 # Esteem Multi Systems — Interactive Catalogue
 
 A premium, shareable catalogue page for Esteem Multi Systems (Chennai, est.
-2009): a short intro followed by a realistic page-turning book with a
-Chronicle chapter index, in-book zoom, page sound and enquiry links.
+2009): a nav bar and a full-screen, realistic page-turning book with a
+Chronicle chapter index, in-book zoom and enquiry links.
 
 Deployed on Cloudflare Workers (`wrangler.jsonc`, serving `dist/`) — every push to `main` rebuilds and redeploys automatically. `vercel.json` is kept so the same repo also deploys on Vercel.
 

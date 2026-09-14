@@ -8,7 +8,6 @@
 
   const DATA = window.__CATALOGUE__;
   const EMAIL = "info@esteemmultisystems.com";
-  const FOUNDED = 2009;
   const coarse = window.matchMedia("(pointer: coarse)").matches;
   const $ = (id) => document.getElementById(id);
   const qsa = (sel, root = document) => Array.from(root.querySelectorAll(sel));
@@ -25,8 +24,6 @@
     box: null,
     groups: [],
     pageEls: [],
-    sound: true,
-    audio: null,
     hintDone: false,
     settleTimer: 0,
     toastTimer: 0,
@@ -50,10 +47,6 @@
     const use = btn && btn.querySelector("use");
     if (use) use.setAttribute("href", "#i-" + name);
   }
-  const store = {
-    get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
-    set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
-  };
 
   /* ---------- structure ---------- */
   function buildGroups(pages) {
@@ -98,26 +91,6 @@
     return ps.find((p) => p.kind === "product") || ps.find((p) => p.kind === "section") || ps[0];
   }
   const rangeLabel = (vis) => (vis.length > 1 ? `${vis[0]}–${vis[1]}` : String(vis[0]));
-
-  /* ---------- static content ---------- */
-  function fillStatic() {
-    const products = DATA.pages.filter((p) => p.kind === "product").length;
-    const chapters = S.groups.filter((g) => g.kind === "section").length;
-    const values = { machines: products, chapters, years: new Date().getFullYear() - FOUNDED, pages: S.total };
-    qsa("[data-stat]").forEach((el) => { el.textContent = values[el.dataset.stat]; });
-    $("year").textContent = new Date().getFullYear();
-    $("rail").setAttribute("aria-valuemax", S.total);
-
-    const cover = $("book3d-cover");
-    cover.src = page(1).src;
-    cover.alt = page(1).title;
-
-    const cats = $("cats");
-    S.groups.forEach((g) => {
-      if (g.kind !== "section") return;
-      cats.appendChild(h("button", { class: "cat-chip", type: "button", text: g.name, onclick: () => openInReader(g.start) }));
-    });
-  }
 
   /* ---------- book DOM ---------- */
   function buildBook() {
@@ -274,7 +247,6 @@
     S.flip.on("changeState", (e) => {
       S.state = e.data;
       document.body.classList.toggle("is-turning", e.data !== "read");
-      if (e.data === "flipping") playFlip();
       if (e.data === "user_fold" || e.data === "flipping") dismissHint();
       if (e.data === "read") requestAnimationFrame(syncShell);
     });
@@ -359,6 +331,7 @@
     const rail = $("rail");
     const tip = $("rail-tip");
     const ticks = $("rail-ticks");
+    rail.setAttribute("aria-valuemax", S.total);
     S.groups.forEach((g) => {
       if (g.kind !== "section" || S.total < 2) return;
       ticks.appendChild(h("i", { style: `left:${((g.start - 1) / (S.total - 1)) * 100}%` }));
@@ -402,7 +375,7 @@
       rail.classList.add("is-dragging");
       showTip(e.clientX);
     });
-    const end = (e) => {
+    rail.addEventListener("pointerup", (e) => {
       if (!dragging) return;
       dragging = false;
       rail.classList.remove("is-dragging");
@@ -410,9 +383,13 @@
       const n = pageAt(e.clientX).n;
       updateUI();
       goTo(n);
-    };
-    rail.addEventListener("pointerup", end);
-    rail.addEventListener("pointercancel", () => { dragging = false; rail.classList.remove("is-dragging"); tip.classList.remove("is-on"); updateUI(); });
+    });
+    rail.addEventListener("pointercancel", () => {
+      dragging = false;
+      rail.classList.remove("is-dragging");
+      tip.classList.remove("is-on");
+      updateUI();
+    });
     rail.addEventListener("keydown", (e) => {
       if (e.key === "ArrowRight" || e.key === "ArrowUp") { e.preventDefault(); next(); }
       if (e.key === "ArrowLeft" || e.key === "ArrowDown") { e.preventDefault(); prev(); }
@@ -524,24 +501,12 @@
     $("sheet-close").addEventListener("click", closeSheet);
     $("sheet-chronicle").addEventListener("click", () => openDrawer("chronicle"));
     $("sheet-pages").addEventListener("click", () => openDrawer("pages"));
-    $("sheet-sound").addEventListener("click", () => {
-      setSound(!S.sound);
-      if (S.sound) { unlockAudio(); playFlip(); }
-    });
     $("sheet-share").addEventListener("click", () => { closeSheet(); share(); });
     $("sheet-first").addEventListener("click", () => { closeSheet(); goTo(1); });
   }
 
-  function openInReader(n) {
-    const reader = $("catalogue");
-    const top = reader.getBoundingClientRect().top + window.scrollY;
-    const far = Math.abs(window.scrollY - top) > 40;
-    window.scrollTo({ top, behavior: "smooth" });
-    if (n) setTimeout(() => goTo(n), far ? 750 : 0);
-  }
-
   /* ---------- zoom: the real book scales and pans inside the tray ---------- */
-  const Z = { s: 1, tx: 0, ty: 0, max: 4, pts: new Map(), pinch: null, pan: null, gesture: false, lastTurn: 0, lastTap: 0 };
+  const Z = { s: 1, tx: 0, ty: 0, max: 4, pts: new Map(), pinch: null, pan: null, gesture: false, lastTurn: 0, lastTap: 0, quietUntil: 0, transitionTimer: 0 };
   const isZoomed = () => Z.s > 1.001;
 
   function contentBox() {
@@ -570,12 +535,30 @@
     Z.tx = clamp(Z.tx, L.minX, L.maxX);
     Z.ty = clamp(Z.ty, L.minY, L.maxY);
   }
+  let zoomFrame = 0;
+  let zoomAnimated = false;
+  // Coalesce transform writes to one per frame so pinch and pan stay smooth on phones.
   function applyZoom(animate) {
+    zoomAnimated = zoomAnimated || Boolean(animate);
+    if (zoomFrame) return;
+    zoomFrame = requestAnimationFrame(() => {
+      zoomFrame = 0;
+      const a = zoomAnimated;
+      zoomAnimated = false;
+      renderZoom(a);
+    });
+  }
+  function renderZoom(animate) {
     const el = $("book-zoom");
     const on = isZoomed();
-    el.style.transition = animate ? "transform .38s cubic-bezier(.22,.68,.32,1)" : "none";
+    clearTimeout(Z.transitionTimer);
+    el.style.transition = animate ? "transform .38s cubic-bezier(.22,.68,.32,1)" : "";
+    // Clear the inline transition once back at normal size so no stale animation state remains.
+    if (!on) Z.transitionTimer = setTimeout(() => { if (!isZoomed()) el.style.transition = ""; }, animate ? 420 : 0);
     el.style.transform = on ? `translate3d(${Z.tx}px, ${Z.ty}px, 0) scale(${Z.s})` : "";
     document.body.classList.toggle("is-zoomed", on);
+    // Focus must not stay on the zoom controls once they are hidden.
+    if (!on && $("zoom-pill").contains(document.activeElement)) $("btn-zoom").focus({ preventScroll: true });
     $("zoom-pill").setAttribute("aria-hidden", String(!on));
     $("btn-zoom").setAttribute("aria-pressed", String(on));
     $("zoom-level").textContent = Math.round(Z.s * 100) + "%";
@@ -650,10 +633,10 @@
     const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 
     // While zoomed or pinching, the book's own drag handling must not see the gesture.
-    const blockTypes = ["touchstart", "touchmove", "touchend", "touchcancel", "mousedown", "mousemove", "mouseup"];
+    const blockTypes = ["touchstart", "touchmove", "touchend", "touchcancel", "mousedown", "mousemove", "mouseup", "click"];
     blockTypes.forEach((type) => {
       window.addEventListener(type, (e) => {
-        const active = Z.gesture || Z.pinch;
+        const active = Z.gesture || Z.pinch || performance.now() < Z.quietUntil;
         if (!active && !(isZoomed() && tray.contains(e.target))) return;
         if (e.target.closest && e.target.closest("button")) return;
         e.stopPropagation();
@@ -662,6 +645,8 @@
     });
 
     tray.addEventListener("pointerdown", (e) => {
+      // A new first finger means every earlier touch has ended, even if its lift event was lost.
+      if (e.isPrimary) { Z.pts.clear(); Z.pinch = null; }
       if (e.target.closest("button")) return;
       if (e.pointerType === "mouse" && (!isZoomed() || e.button !== 0)) return;
       Z.pts.set(e.pointerId, { x: e.clientX, y: e.clientY, t: performance.now() });
@@ -682,7 +667,8 @@
       if (Z.gesture) { try { tray.setPointerCapture(e.pointerId); } catch (err) {} }
     });
 
-    tray.addEventListener("pointermove", (e) => {
+    // The book re-renders its pages mid-drag, so lift events may never bubble to the tray.
+    window.addEventListener("pointermove", (e) => {
       const prevPt = Z.pts.get(e.pointerId);
       if (!prevPt) return;
       const cur = { x: e.clientX, y: e.clientY, t: prevPt.t };
@@ -722,7 +708,7 @@
 
       if (Z.pinch && Z.pts.size < 2) {
         Z.pinch = null;
-        if (Z.s < 1.12) resetZoom(true);
+        if (Z.s < 1.12) { resetZoom(true); Z.quietUntil = performance.now() + 500; }
         else if (Z.pts.size === 1) Z.pan = { raw: Z.tx, over: 0, moved: 99, t: performance.now() };
       }
       if (Z.pts.size) return;
@@ -740,14 +726,14 @@
           // double-tap while zoomed returns to the full book
           if (e.type === "pointerup" && moved < 8 && pt && performance.now() - pt.t < 300) {
             const now = performance.now();
-            if (now - Z.lastTap < 320) { resetZoom(true); Z.lastTap = 0; } else Z.lastTap = now;
+            if (now - Z.lastTap < 320) { resetZoom(true); Z.lastTap = 0; Z.quietUntil = now + 500; } else Z.lastTap = now;
           }
         }
       }
       Z.gesture = false;
     };
-    tray.addEventListener("pointerup", end);
-    tray.addEventListener("pointercancel", end);
+    window.addEventListener("pointerup", end);
+    window.addEventListener("pointercancel", end);
 
     tray.addEventListener("wheel", (e) => {
       if (!isZoomed() && !e.ctrlKey) return;
@@ -759,103 +745,6 @@
     $("zoom-exit").addEventListener("click", () => resetZoom(true));
     $("zoom-in").addEventListener("click", () => { const c = trayPoint(0.5, 0.5); zoomAt(Z.s * 1.4, c.x, c.y, true); });
     $("zoom-out").addEventListener("click", () => { const c = trayPoint(0.5, 0.5); zoomAt(Z.s / 1.4, c.x, c.y, true); });
-  }
-
-  /* ---------- sound ---------- */
-  function ensureAudio() {
-    if (S.audio) return S.audio;
-    const AC = window.AudioContext || window.webkitAudioContext;
-    if (!AC) return null;
-    let ctx;
-    try { ctx = new AC(); } catch (e) { return null; }
-    const len = Math.floor(ctx.sampleRate * 0.7);
-    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
-    const d = buf.getChannelData(0);
-    let brown = 0;
-    for (let i = 0; i < len; i++) {
-      const white = Math.random() * 2 - 1;
-      brown = (brown + 0.05 * white) / 1.05;
-      d[i] = brown * 2.8 + white * 0.22;
-    }
-    S.audio = { ctx, buf, primed: false };
-    return S.audio;
-  }
-  // Mobile browsers only allow audio after a touch/click, so prime it on the first one.
-  function unlockAudio() {
-    if (!S.sound) return;
-    const a = ensureAudio();
-    if (!a) return;
-    if (a.ctx.state !== "running") a.ctx.resume().catch(() => {});
-    if (!a.primed) {
-      try {
-        const src = a.ctx.createBufferSource();
-        src.buffer = a.ctx.createBuffer(1, 1, 22050);
-        src.connect(a.ctx.destination);
-        src.start(0);
-        a.primed = true;
-      } catch (e) {}
-    }
-  }
-  function playFlip() {
-    if (!S.sound) return;
-    const a = ensureAudio();
-    if (!a) return;
-    const { ctx, buf } = a;
-    if (ctx.state !== "running") ctx.resume().catch(() => {});
-    const t = ctx.currentTime + 0.01;
-
-    const out = ctx.createGain();
-    out.gain.value = 0.9;
-    out.connect(ctx.destination);
-
-    // paper sweep
-    const sweep = ctx.createBufferSource();
-    sweep.buffer = buf;
-    sweep.playbackRate.value = 0.9 + Math.random() * 0.25;
-    const band = ctx.createBiquadFilter();
-    band.type = "bandpass";
-    band.Q.value = 0.9;
-    band.frequency.setValueAtTime(4200, t);
-    band.frequency.exponentialRampToValueAtTime(900, t + 0.45);
-    const g1 = ctx.createGain();
-    g1.gain.setValueAtTime(0.0001, t);
-    g1.gain.exponentialRampToValueAtTime(1, t + 0.05);
-    g1.gain.exponentialRampToValueAtTime(0.0001, t + 0.52);
-    sweep.connect(band).connect(g1).connect(out);
-    sweep.start(t);
-    sweep.stop(t + 0.56);
-
-    // crisp edge as the page lands
-    const snap = ctx.createBufferSource();
-    snap.buffer = buf;
-    const high = ctx.createBiquadFilter();
-    high.type = "highpass";
-    high.frequency.value = 2200;
-    const g2 = ctx.createGain();
-    const t2 = t + 0.4;
-    g2.gain.setValueAtTime(0.0001, t2);
-    g2.gain.exponentialRampToValueAtTime(0.8, t2 + 0.012);
-    g2.gain.exponentialRampToValueAtTime(0.0001, t2 + 0.13);
-    snap.connect(high).connect(g2).connect(out);
-    snap.start(t2, 0.2);
-    snap.stop(t2 + 0.15);
-  }
-  function setSound(on) {
-    S.sound = on;
-    const btn = $("btn-sound");
-    btn.setAttribute("aria-pressed", String(on));
-    btn.dataset.tip = on ? "Page sound on" : "Page sound off";
-    setIcon(btn, on ? "sound" : "mute");
-    const item = $("sheet-sound");
-    item.setAttribute("aria-pressed", String(on));
-    setIcon(item, on ? "sound" : "mute");
-    $("sheet-sound-label").textContent = on ? "Sound on" : "Sound off";
-    store.set("ems-sound", on ? "1" : "0");
-  }
-  function wireAudioUnlock() {
-    ["pointerdown", "touchend", "click", "keydown"].forEach((type) => {
-      window.addEventListener(type, unlockAudio, { capture: true, passive: true });
-    });
   }
 
   /* ---------- share, enquire, toast ---------- */
@@ -931,19 +820,35 @@
     document.addEventListener("webkitfullscreenchange", sync);
   }
 
-  /* ---------- reading mode (nav hides while the book fills the screen) ---------- */
-  function wireReadingMode() {
-    const reader = $("catalogue");
-    let ticking = false;
-    const onScroll = () => {
-      ticking = false;
-      const r = reader.getBoundingClientRect();
-      document.body.classList.toggle("reading", r.top <= 70 && r.bottom >= window.innerHeight * 0.6);
-    };
-    window.addEventListener("scroll", () => {
-      if (!ticking) { ticking = true; requestAnimationFrame(onScroll); }
-    }, { passive: true });
-    onScroll();
+  /* ---------- reliable taps ---------- */
+  // Some phone browsers occasionally deliver a clean tap on a button without the click that should follow
+  // (seen after zooming and scrolling). If no click arrives shortly after a still tap, perform it ourselves.
+  function wireTapGuard() {
+    let press = null;
+    let pending = null;
+    document.addEventListener("pointerdown", (e) => {
+      if (e.pointerType !== "touch") return;
+      const btn = e.target.closest && e.target.closest("button");
+      press = btn ? { btn, id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now() } : null;
+    }, true);
+    document.addEventListener("pointerup", (e) => {
+      if (!press || e.pointerId !== press.id) return;
+      const { btn, x, y, t } = press;
+      press = null;
+      const still = Math.hypot(e.clientX - x, e.clientY - y) < 10 && performance.now() - t < 600;
+      if (!still || btn.disabled || !btn.contains(document.elementFromPoint(e.clientX, e.clientY))) return;
+      clearTimeout(pending && pending.timer);
+      pending = { btn, fired: false, timer: setTimeout(() => { pending.fired = true; pending.at = performance.now(); btn.click(); }, 350) };
+    }, true);
+    document.addEventListener("click", (e) => {
+      if (!pending || !e.isTrusted) return;
+      const btn = e.target.closest && e.target.closest("button");
+      if (btn !== pending.btn) return;
+      if (!pending.fired) { clearTimeout(pending.timer); pending = null; return; }
+      // The browser's own click turned up after we already acted: don't run it twice.
+      if (performance.now() - pending.at < 800) { e.stopImmediatePropagation(); e.preventDefault(); }
+      pending = null;
+    }, true);
   }
 
   /* ---------- keyboard ---------- */
@@ -965,13 +870,10 @@
         else if (e.key === "0") resetZoom(true);
         return;
       }
-      const reading = document.body.classList.contains("reading");
-      if (e.key === "ArrowRight") { e.preventDefault(); next(); }
-      else if (e.key === "ArrowLeft") { e.preventDefault(); prev(); }
-      else if (reading && e.key === "PageDown") { e.preventDefault(); next(); }
-      else if (reading && e.key === "PageUp") { e.preventDefault(); prev(); }
-      else if (reading && e.key === "Home") { e.preventDefault(); goTo(1); }
-      else if (reading && e.key === "End") { e.preventDefault(); goTo(S.total); }
+      if (e.key === "ArrowRight" || e.key === "PageDown") { e.preventDefault(); next(); }
+      else if (e.key === "ArrowLeft" || e.key === "PageUp") { e.preventDefault(); prev(); }
+      else if (e.key === "Home") { e.preventDefault(); goTo(1); }
+      else if (e.key === "End") { e.preventDefault(); goTo(S.total); }
     });
   }
 
@@ -985,29 +887,16 @@
     $("btn-first").addEventListener("click", () => goTo(1));
     $("btn-last").addEventListener("click", () => goTo(S.total));
     $("btn-share").addEventListener("click", share);
-    $("btn-sound").addEventListener("click", () => {
-      setSound(!S.sound);
-      if (S.sound) { unlockAudio(); playFlip(); }
-    });
     qsa("[data-enquire]").forEach((b) => b.addEventListener("click", () => { closeSheet(); enquire(); }));
-    $("book3d").addEventListener("click", () => openInReader(2));
-    $("hero-chronicle").addEventListener("click", () => {
-      openInReader(0);
-      setTimeout(() => openDrawer("chronicle"), 800);
-    });
 
     if ("ResizeObserver" in window) new ResizeObserver(scheduleLayout).observe($("tray"));
-    window.addEventListener("resize", scheduleLayout);
+    else window.addEventListener("resize", scheduleLayout);
 
-    const io = new IntersectionObserver((entries) => {
-      entries.forEach((en) => {
-        if (!en.isIntersecting) return;
-        $("book-wrap").classList.add("is-revealed");
-        setTimeout(showHint, 900);
-        io.disconnect();
-      });
-    }, { threshold: 0.3 });
-    io.observe($("tray"));
+    // Links like #p=12 (including the logo) jump straight to that page.
+    window.addEventListener("hashchange", () => {
+      const n = startPageFromHash();
+      if (n) goTo(n);
+    });
   }
 
   /* ---------- boot ---------- */
@@ -1043,9 +932,6 @@
 
     S.total = DATA.pages.length;
     S.groups = buildGroups(DATA.pages);
-    setSound(store.get("ems-sound") !== "0");
-    wireAudioUnlock();
-    fillStatic();
 
     const start = startPageFromHash();
     const first = new Set([1, 2, 3].filter((n) => n <= S.total));
@@ -1069,22 +955,20 @@
       wireRail();
       wireZoom();
       wireFullscreen();
-      wireReadingMode();
+      wireTapGuard();
       wireKeys();
       wireControls();
     } catch (err) {
       console.error("Catalogue start-up error:", err);
-      $("book-wrap").classList.add("is-revealed");
     }
 
     setTimeout(() => {
       $("loader").classList.add("is-done");
-      if (start) {
-        const reader = $("catalogue");
-        window.scrollTo({ top: reader.getBoundingClientRect().top + window.scrollY, behavior: "auto" });
-      }
+      $("book-wrap").classList.add("is-revealed");
+      setTimeout(showHint, 1100);
     }, 250);
-    setTimeout(trickleLoad, 1800);
+    const saveData = navigator.connection && navigator.connection.saveData;
+    if (!saveData) setTimeout(trickleLoad, 1800);
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
