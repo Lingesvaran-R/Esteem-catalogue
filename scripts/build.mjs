@@ -153,7 +153,13 @@ async function main() {
 
   const siteUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "";
   const data = JSON.stringify({ ratio: manifest.ratio, pages }).replace(/</g, "\\u003c");
+  // Version the stylesheet and script so a new deploy never pairs fresh HTML with a cached old script.
+  const version = async (rel) =>
+    crypto.createHash("sha1").update(await fs.readFile(path.join(ROOT, rel))).digest("hex").slice(0, 10);
   let html = await fs.readFile(path.join(ROOT, "index.html"), "utf8");
+  html = html
+    .replace('href="assets/css/style.css"', `href="assets/css/style.css?v=${await version("assets/css/style.css")}"`)
+    .replace('src="assets/js/app.js"', `src="assets/js/app.js?v=${await version("assets/js/app.js")}"`);
   html = html
     .replace("<!--CATALOGUE_DATA-->", `<script>window.__CATALOGUE__=${data};</script>`)
     .replaceAll("%OG_IMAGE%", siteUrl ? `${siteUrl}/og.jpg` : "og.jpg")

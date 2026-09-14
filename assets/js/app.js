@@ -1059,17 +1059,23 @@
     ]);
     progress(1);
 
-    buildBook();
-    [...first].forEach(loadPage);
-    initFlip(start ? start - 1 : 0);
-    buildDrawer();
-    wireSheet();
-    wireRail();
-    wireZoom();
-    wireFullscreen();
-    wireReadingMode();
-    wireKeys();
-    wireControls();
+    // Never leave visitors stuck on the loader, even if one feature fails to start.
+    try {
+      buildBook();
+      [...first].forEach(loadPage);
+      initFlip(start ? start - 1 : 0);
+      buildDrawer();
+      wireSheet();
+      wireRail();
+      wireZoom();
+      wireFullscreen();
+      wireReadingMode();
+      wireKeys();
+      wireControls();
+    } catch (err) {
+      console.error("Catalogue start-up error:", err);
+      $("book-wrap").classList.add("is-revealed");
+    }
 
     setTimeout(() => {
       $("loader").classList.add("is-done");
