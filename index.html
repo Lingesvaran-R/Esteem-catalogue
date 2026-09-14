@@ -31,7 +31,6 @@
     <symbol id="i-grid" viewBox="0 0 24 24"><rect x="4" y="4" width="6.5" height="6.5" rx="1.6"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.6"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.6"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.6"/></symbol>
     <symbol id="i-zoom-in" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M20.5 20.5l-4.2-4.2M11 8.3v5.4M8.3 11h5.4"/></symbol>
     <symbol id="i-zoom-out" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M20.5 20.5l-4.2-4.2M8.3 11h5.4"/></symbol>
-    <symbol id="i-fit" viewBox="0 0 24 24"><path d="M4 4l5 5M20 4l-5 5M4 20l5-5M20 20l-5-5M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></symbol>
     <symbol id="i-expand" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></symbol>
     <symbol id="i-collapse" viewBox="0 0 24 24"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></symbol>
     <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M3.5 7.5l8.5 6 8.5-6"/></symbol>
@@ -42,6 +41,7 @@
     <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M20.5 20.5l-4.2-4.2"/></symbol>
     <symbol id="i-hand" viewBox="0 0 24 24"><path d="M9 11V5.8a1.6 1.6 0 0 1 3.2 0V11m0-1.6a1.6 1.6 0 0 1 3.2 0V12m0-1.2a1.6 1.6 0 0 1 3.2 0v4.4a5.8 5.8 0 0 1-5.8 5.8h-1.4a4.3 4.3 0 0 1-3.3-1.6L4.6 16.6a1.7 1.7 0 0 1 2.5-2.3L9 16.2"/></symbol>
     <symbol id="i-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M8.2 12.4l2.6 2.6 5-5.4"/></symbol>
+    <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5.5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18.5" cy="12" r="1.6"/></symbol>
   </defs>
 </svg>
 
@@ -69,7 +69,7 @@
 <main>
   <section class="hero" id="top">
     <div class="hero-copy">
-      <span class="chip-inset"><span class="chip-dot"></span>Since 2009 · Ambattur Industrial Estate, Chennai</span>
+      <span class="chip-inset"><span class="chip-dot"></span>Since 2009 · <span class="chip-long">Ambattur Industrial Estate, </span>Chennai</span>
       <h1>Engineered for the <em>modern production floor.</em></h1>
       <p class="lead">Industrial part washing, drying, leak testing, oiling, conveying and automation systems — designed, fabricated and commissioned under one roof.</p>
       <div class="hero-cta">
@@ -109,7 +109,7 @@
     <div class="intro-inner">
       <p class="eyebrow">The Catalogue</p>
       <h2 id="catalogue-title">Turn every page like the real thing.</h2>
-      <p class="lead sm">Click and hold a page, then drag it left or right. On a phone, touch and hold before you drag — or simply swipe.</p>
+      <p class="lead sm">Click and hold a page, then drag it left or right. On a phone, swipe or touch and hold to turn, and pinch to zoom.</p>
     </div>
   </section>
 
@@ -118,18 +118,27 @@
       <button class="side-arrow prev neu-icon lg" id="side-prev" type="button" aria-label="Previous page"><svg><use href="#i-chev-left"/></svg></button>
 
       <div class="book-wrap" id="book-wrap">
-        <div class="book-slide" id="book-slide">
-          <div class="book-shell" id="book-shell" aria-hidden="true">
-            <span class="book-floor"></span>
-            <span class="edge edge-left" id="edge-left"></span>
-            <span class="edge edge-right" id="edge-right"></span>
+        <div class="book-zoom" id="book-zoom">
+          <div class="book-slide" id="book-slide">
+            <div class="book-shell" id="book-shell" aria-hidden="true">
+              <span class="book-floor"></span>
+              <span class="edge edge-left" id="edge-left"></span>
+              <span class="edge edge-right" id="edge-right"></span>
+            </div>
+            <div class="book" id="book"></div>
+            <span class="spine" id="spine" aria-hidden="true"></span>
           </div>
-          <div class="book" id="book"></div>
-          <span class="spine" id="spine" aria-hidden="true"></span>
         </div>
       </div>
 
       <button class="side-arrow next neu-icon lg" id="side-next" type="button" aria-label="Next page"><svg><use href="#i-chev-right"/></svg></button>
+
+      <div class="zoom-pill neu-sm" id="zoom-pill" aria-hidden="true">
+        <button class="neu-icon sm" id="zoom-out" type="button" aria-label="Zoom out"><svg><use href="#i-zoom-out"/></svg></button>
+        <span class="zoom-level" id="zoom-level">100%</span>
+        <button class="neu-icon sm" id="zoom-in" type="button" aria-label="Zoom in"><svg><use href="#i-zoom-in"/></svg></button>
+        <button class="neu-icon sm" id="zoom-exit" type="button" aria-label="Exit zoom"><svg><use href="#i-close"/></svg></button>
+      </div>
 
       <div class="hint neu-sm" id="hint" aria-hidden="true"><span class="hint-hand"><svg><use href="#i-hand"/></svg></span><span id="hint-text">Click &amp; hold a page, then drag to turn</span></div>
       <p class="settle" id="settle" aria-live="polite"></p>
@@ -144,22 +153,39 @@
       <div class="dock-row">
         <div class="dock-group start">
           <button class="neu-icon" id="btn-chronicle" type="button" aria-label="Chronicle" data-tip="Chronicle"><svg><use href="#i-chronicle"/></svg></button>
-          <button class="neu-icon" id="btn-grid" type="button" aria-label="All pages" data-tip="All pages"><svg><use href="#i-grid"/></svg></button>
-          <button class="neu-icon hide-sm" id="btn-sound" type="button" aria-label="Page sound" aria-pressed="true" data-tip="Page sound"><svg><use href="#i-sound"/></svg></button>
+          <button class="neu-icon desk-only" id="btn-grid" type="button" aria-label="All pages" data-tip="All pages"><svg><use href="#i-grid"/></svg></button>
+          <button class="neu-icon desk-only hide-sm" id="btn-sound" type="button" aria-label="Page sound" aria-pressed="true" data-tip="Page sound"><svg><use href="#i-sound"/></svg></button>
         </div>
         <div class="dock-group center">
-          <button class="neu-icon hide-sm" id="btn-first" type="button" aria-label="First page" data-tip="First page"><svg><use href="#i-first"/></svg></button>
+          <button class="neu-icon desk-only hide-sm" id="btn-first" type="button" aria-label="First page" data-tip="First page"><svg><use href="#i-first"/></svg></button>
           <button class="neu-icon" id="btn-prev" type="button" aria-label="Previous page"><svg><use href="#i-chev-left"/></svg></button>
           <div class="counter neu-inset-sm"><strong id="counter">1 / 41</strong><span id="counter-sub">Cover</span></div>
           <button class="neu-icon" id="btn-next" type="button" aria-label="Next page"><svg><use href="#i-chev-right"/></svg></button>
-          <button class="neu-icon hide-sm" id="btn-last" type="button" aria-label="Last page" data-tip="Last page"><svg><use href="#i-last"/></svg></button>
+          <button class="neu-icon desk-only hide-sm" id="btn-last" type="button" aria-label="Last page" data-tip="Last page"><svg><use href="#i-last"/></svg></button>
         </div>
         <div class="dock-group end">
-          <button class="neu-icon" id="btn-zoom" type="button" aria-label="Zoom page" data-tip="Zoom"><svg><use href="#i-zoom-in"/></svg></button>
-          <button class="neu-icon" id="btn-share" type="button" aria-label="Share this page" data-tip="Share page"><svg><use href="#i-link"/></svg></button>
-          <button class="neu-icon" id="btn-full" type="button" aria-label="Fullscreen" data-tip="Fullscreen"><svg><use href="#i-expand"/></svg></button>
-          <button class="btn-jewel sm" type="button" data-enquire><svg><use href="#i-mail"/></svg><span>Enquire</span></button>
+          <button class="neu-icon" id="btn-zoom" type="button" aria-label="Zoom" aria-pressed="false" data-tip="Zoom"><svg><use href="#i-zoom-in"/></svg></button>
+          <button class="neu-icon desk-only" id="btn-share" type="button" aria-label="Share this page" data-tip="Share page"><svg><use href="#i-link"/></svg></button>
+          <button class="neu-icon desk-only" id="btn-full" type="button" aria-label="Fullscreen" data-tip="Fullscreen"><svg><use href="#i-expand"/></svg></button>
+          <button class="btn-jewel sm desk-only" type="button" data-enquire><svg><use href="#i-mail"/></svg><span>Enquire</span></button>
+          <button class="neu-icon mobile-only" id="btn-more" type="button" aria-label="More options" aria-expanded="false"><svg><use href="#i-more"/></svg></button>
         </div>
+      </div>
+    </div>
+
+    <div class="sheet neu" id="more-sheet" aria-hidden="true" role="dialog" aria-label="More options">
+      <span class="sheet-grab" aria-hidden="true"></span>
+      <div class="sheet-grid">
+        <button class="sheet-item" id="sheet-chronicle" type="button"><span class="sheet-icon neu-sm"><svg><use href="#i-chronicle"/></svg></span><span>Chronicle</span></button>
+        <button class="sheet-item" id="sheet-pages" type="button"><span class="sheet-icon neu-sm"><svg><use href="#i-grid"/></svg></span><span>All pages</span></button>
+        <button class="sheet-item" id="sheet-sound" type="button" aria-pressed="true"><span class="sheet-icon neu-sm"><svg><use href="#i-sound"/></svg></span><span id="sheet-sound-label">Sound on</span></button>
+        <button class="sheet-item" id="sheet-share" type="button"><span class="sheet-icon neu-sm"><svg><use href="#i-link"/></svg></span><span>Share page</span></button>
+        <button class="sheet-item" id="sheet-full" type="button"><span class="sheet-icon neu-sm"><svg><use href="#i-expand"/></svg></span><span id="sheet-full-label">Fullscreen</span></button>
+        <button class="sheet-item" id="sheet-first" type="button"><span class="sheet-icon neu-sm"><svg><use href="#i-first"/></svg></span><span>First page</span></button>
+      </div>
+      <div class="sheet-actions">
+        <button class="btn-jewel" type="button" data-enquire><svg><use href="#i-mail"/></svg> Enquire about this page</button>
+        <button class="neu-icon" id="sheet-close" type="button" aria-label="Close"><svg><use href="#i-close"/></svg></button>
       </div>
     </div>
 
@@ -180,26 +206,8 @@
     </aside>
     <div class="scrim" id="scrim"></div>
 
-    <div class="zoom" id="zoom" aria-hidden="true" role="dialog" aria-label="Page zoom">
-      <div class="zoom-stage" id="zoom-stage"><img id="zoom-img" alt="" draggable="false"></div>
-      <div class="zoom-bar neu">
-        <button class="neu-icon" id="zoom-prev" type="button" aria-label="Previous page"><svg><use href="#i-chev-left"/></svg></button>
-        <span class="zoom-title neu-inset-sm" id="zoom-title">Page 1</span>
-        <button class="neu-icon" id="zoom-next" type="button" aria-label="Next page"><svg><use href="#i-chev-right"/></svg></button>
-        <span class="zoom-sep" aria-hidden="true"></span>
-        <button class="neu-icon" id="zoom-out" type="button" aria-label="Zoom out"><svg><use href="#i-zoom-out"/></svg></button>
-        <span class="zoom-level" id="zoom-level">100%</span>
-        <button class="neu-icon" id="zoom-in" type="button" aria-label="Zoom in"><svg><use href="#i-zoom-in"/></svg></button>
-        <button class="neu-icon hide-xs" id="zoom-fit" type="button" aria-label="Fit page"><svg><use href="#i-fit"/></svg></button>
-        <button class="neu-icon" id="zoom-close" type="button" aria-label="Close zoom"><svg><use href="#i-close"/></svg></button>
-      </div>
-    </div>
-
     <div class="toast neu-sm" id="toast" role="status" aria-live="polite"></div>
   </section>
-
-
-
 </main>
 
 <footer class="footer">

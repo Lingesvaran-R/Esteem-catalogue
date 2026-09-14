@@ -1,8 +1,8 @@
 # Esteem Multi Systems — Interactive Catalogue
 
-A premium single-page site for Esteem Multi Systems (Chennai, est. 2009): a
-landing section, a realistic page-turning catalogue, the Chronicle chapter
-index, company profile and contact details.
+A premium, shareable catalogue page for Esteem Multi Systems (Chennai, est.
+2009): a short intro followed by a realistic page-turning book with a
+Chronicle chapter index, in-book zoom, page sound and enquiry links.
 
 Deployed on Cloudflare Workers (`wrangler.jsonc`, serving `dist/`) — every push to `main` rebuilds and redeploys automatically. `vercel.json` is kept so the same repo also deploys on Vercel.
 

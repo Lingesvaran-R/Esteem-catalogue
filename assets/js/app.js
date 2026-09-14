@@ -20,7 +20,9 @@
     idx: 0,
     focus: 0,
     flip: null,
+    state: "read",
     spread: true,
+    box: null,
     groups: [],
     pageEls: [],
     sound: true,
@@ -44,17 +46,8 @@
     for (const c of children) if (c != null) el.appendChild(typeof c === "string" ? document.createTextNode(c) : c);
     return el;
   }
-  function icon(name) {
-    const ns = "http://www.w3.org/2000/svg";
-    const svg = document.createElementNS(ns, "svg");
-    svg.setAttribute("aria-hidden", "true");
-    const use = document.createElementNS(ns, "use");
-    use.setAttribute("href", "#i-" + name);
-    svg.appendChild(use);
-    return svg;
-  }
   function setIcon(btn, name) {
-    const use = btn.querySelector("use");
+    const use = btn && btn.querySelector("use");
     if (use) use.setAttribute("href", "#i-" + name);
   }
   const store = {
@@ -110,12 +103,7 @@
   function fillStatic() {
     const products = DATA.pages.filter((p) => p.kind === "product").length;
     const chapters = S.groups.filter((g) => g.kind === "section").length;
-    const values = {
-      machines: products,
-      chapters,
-      years: new Date().getFullYear() - FOUNDED,
-      pages: S.total
-    };
+    const values = { machines: products, chapters, years: new Date().getFullYear() - FOUNDED, pages: S.total };
     qsa("[data-stat]").forEach((el) => { el.textContent = values[el.dataset.stat]; });
     $("year").textContent = new Date().getFullYear();
     $("rail").setAttribute("aria-valuemax", S.total);
@@ -125,7 +113,7 @@
     cover.alt = page(1).title;
 
     const cats = $("cats");
-    S.groups.forEach((g, gi) => {
+    S.groups.forEach((g) => {
       if (g.kind !== "section") return;
       cats.appendChild(h("button", { class: "cat-chip", type: "button", text: g.name, onclick: () => openInReader(g.start) }));
     });
@@ -175,10 +163,10 @@
   function computeLayout() {
     const tray = $("tray");
     const cs = getComputedStyle(tray);
-    const w = Math.max(160, tray.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - 24);
+    const w = Math.max(160, tray.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight));
     const hgt = Math.max(160, tray.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom));
     const r = DATA.ratio;
-    const spreadH = Math.min(hgt, w / (2 * r));
+    const spreadH = Math.min(hgt, (w - 28) / (2 * r)); // room for the page-edge stacks
     const singleH = Math.min(hgt, w / r);
     const spread = window.innerWidth >= 700 && spreadH >= singleH * 0.72;
     const pageH = Math.floor(spread ? spreadH : singleH);
@@ -189,6 +177,7 @@
   function layout() {
     const L = computeLayout();
     const wrap = $("book-wrap");
+    if (isZoomed()) resetZoom(false);
     wrap.style.width = L.wrapW + "px";
     wrap.style.height = L.pageH + "px";
     if (S.flip) {
@@ -224,14 +213,17 @@
     const coverAlone = spread && vis.length === 1 && vis[0] === 1;
     const backAlone = spread && vis.length === 1 && vis[0] === S.total && S.total > 1;
     const half = bw / 2;
+    const slideX = coverAlone ? -half / 2 : backAlone ? half / 2 : 0;
+    const shellLeft = coverAlone ? half : 0;
+    const shellW = spread && (coverAlone || backAlone) ? half : bw;
 
     const shell = $("book-shell");
     shell.style.top = "0px";
     shell.style.height = bh + "px";
-    shell.style.left = (coverAlone ? half : 0) + "px";
-    shell.style.width = (spread && (coverAlone || backAlone) ? half : bw) + "px";
-
-    $("book-slide").style.transform = coverAlone ? `translateX(${-half / 2}px)` : backAlone ? `translateX(${half / 2}px)` : "none";
+    shell.style.left = shellLeft + "px";
+    shell.style.width = shellW + "px";
+    $("book-slide").style.transform = slideX ? `translateX(${slideX}px)` : "none";
+    S.box = { x: shellLeft + slideX, y: 0, w: shellW, h: bh };
 
     const spine = $("spine");
     spine.classList.toggle("is-on", spread && vis.length > 1);
@@ -280,6 +272,7 @@
       onPageChange(true);
     });
     S.flip.on("changeState", (e) => {
+      S.state = e.data;
       document.body.classList.toggle("is-turning", e.data !== "read");
       if (e.data === "flipping") playFlip();
       if (e.data === "user_fold" || e.data === "flipping") dismissHint();
@@ -295,6 +288,7 @@
     loadAround(vis[0]);
     updateUI();
     syncShell();
+    if (isZoomed()) { clampPan(); applyZoom(true); }
     if (fromTurn) {
       showSettle(vis);
       history.replaceState(null, "", "#p=" + vis[0]);
@@ -349,10 +343,10 @@
   function showHint() {
     if (S.hintDone) return;
     $("hint-text").textContent = coarse
-      ? "Touch & hold a page, then drag — or swipe"
+      ? "Swipe or touch & hold to turn · pinch to zoom"
       : "Click & hold a page, then drag left or right";
     $("hint").classList.add("is-on");
-    setTimeout(dismissHint, 7000);
+    setTimeout(dismissHint, 6500);
   }
   function dismissHint() {
     if (S.hintDone) return;
@@ -465,7 +459,7 @@
     qsa(".tab").forEach((tab) => tab.addEventListener("click", () => setTab(tab.dataset.tab)));
     $("drawer-search").addEventListener("input", filterDrawer);
     $("drawer-close").addEventListener("click", closeDrawer);
-    $("scrim").addEventListener("click", closeDrawer);
+    $("scrim").addEventListener("click", () => { closeDrawer(); closeSheet(); });
     $("btn-chronicle").addEventListener("click", () => openDrawer("chronicle"));
     $("btn-grid").addEventListener("click", () => openDrawer("pages"));
     updateUI();
@@ -494,6 +488,7 @@
     $("drawer-empty").hidden = shown > 0;
   }
   function openDrawer(tab) {
+    closeSheet();
     setTab(tab);
     $("drawer").classList.add("is-open");
     $("drawer").setAttribute("aria-hidden", "false");
@@ -505,9 +500,37 @@
   function closeDrawer() {
     $("drawer").classList.remove("is-open");
     $("drawer").setAttribute("aria-hidden", "true");
-    $("scrim").classList.remove("is-open");
+    if (!sheetOpen()) $("scrim").classList.remove("is-open");
   }
   const drawerOpen = () => $("drawer").classList.contains("is-open");
+
+  /* ---------- more sheet (phones) ---------- */
+  const sheetOpen = () => $("more-sheet").classList.contains("is-open");
+  function openSheet() {
+    $("more-sheet").classList.add("is-open");
+    $("more-sheet").setAttribute("aria-hidden", "false");
+    $("btn-more").setAttribute("aria-expanded", "true");
+    $("scrim").classList.add("is-open");
+  }
+  function closeSheet() {
+    if (!sheetOpen()) return;
+    $("more-sheet").classList.remove("is-open");
+    $("more-sheet").setAttribute("aria-hidden", "true");
+    $("btn-more").setAttribute("aria-expanded", "false");
+    if (!drawerOpen()) $("scrim").classList.remove("is-open");
+  }
+  function wireSheet() {
+    $("btn-more").addEventListener("click", () => (sheetOpen() ? closeSheet() : openSheet()));
+    $("sheet-close").addEventListener("click", closeSheet);
+    $("sheet-chronicle").addEventListener("click", () => openDrawer("chronicle"));
+    $("sheet-pages").addEventListener("click", () => openDrawer("pages"));
+    $("sheet-sound").addEventListener("click", () => {
+      setSound(!S.sound);
+      if (S.sound) { unlockAudio(); playFlip(); }
+    });
+    $("sheet-share").addEventListener("click", () => { closeSheet(); share(); });
+    $("sheet-first").addEventListener("click", () => { closeSheet(); goTo(1); });
+  }
 
   function openInReader(n) {
     const reader = $("catalogue");
@@ -517,131 +540,225 @@
     if (n) setTimeout(() => goTo(n), far ? 750 : 0);
   }
 
-  /* ---------- zoom ---------- */
-  const Z = { open: false, n: 1, s: 1, fit: 1, x: 0, y: 0, iw: 0, ih: 0, pts: new Map(), pinch: null, lastTap: 0, moved: 0 };
+  /* ---------- zoom: the real book scales and pans inside the tray ---------- */
+  const Z = { s: 1, tx: 0, ty: 0, max: 4, pts: new Map(), pinch: null, pan: null, gesture: false, lastTurn: 0, lastTap: 0 };
+  const isZoomed = () => Z.s > 1.001;
 
-  function openZoom(n) {
-    Z.n = n || primaryPage(visiblePages()).n;
-    Z.open = true;
-    $("zoom").classList.add("is-open");
-    $("zoom").setAttribute("aria-hidden", "false");
-    loadZoom();
+  function contentBox() {
+    const wrap = $("book-wrap");
+    return S.box || { x: 0, y: 0, w: wrap.offsetWidth, h: wrap.offsetHeight };
   }
-  function closeZoom() {
-    Z.open = false;
-    $("zoom").classList.remove("is-open");
-    $("zoom").setAttribute("aria-hidden", "true");
+  function limits() {
+    const T = $("tray").getBoundingClientRect();
+    const W = $("book-wrap").getBoundingClientRect();
+    const b = contentBox();
+    const m = 10;
+    const ox = T.left - W.left;
+    const oy = T.top - W.top;
+    const cw = b.w * Z.s;
+    const ch = b.h * Z.s;
+    const L = {};
+    if (cw <= T.width - 2 * m) L.minX = L.maxX = ox + (T.width - cw) / 2 - b.x * Z.s;
+    else { L.minX = ox + T.width - m - cw - b.x * Z.s; L.maxX = ox + m - b.x * Z.s; }
+    if (ch <= T.height - 2 * m) L.minY = L.maxY = oy + (T.height - ch) / 2 - b.y * Z.s;
+    else { L.minY = oy + T.height - m - ch - b.y * Z.s; L.maxY = oy + m - b.y * Z.s; }
+    return L;
   }
-  function loadZoom() {
-    const p = page(Z.n);
-    const img = $("zoom-img");
-    $("zoom-title").textContent = `Page ${Z.n} · ${p.title}`;
-    $("zoom-prev").disabled = Z.n <= 1;
-    $("zoom-next").disabled = Z.n >= S.total;
-    const ready = () => {
-      Z.iw = img.naturalWidth;
-      Z.ih = img.naturalHeight;
-      img.style.width = Z.iw + "px";
-      img.style.height = Z.ih + "px";
-      fitZoom();
-    };
-    img.onload = ready;
-    img.alt = p.title;
-    img.src = p.src;
-    if (img.complete && img.naturalWidth) ready();
+  function clampPan() {
+    if (!isZoomed()) return;
+    const L = limits();
+    Z.tx = clamp(Z.tx, L.minX, L.maxX);
+    Z.ty = clamp(Z.ty, L.minY, L.maxY);
   }
-  function fitZoom() {
-    if (!Z.iw) return;
-    const st = $("zoom-stage");
-    const barSpace = 96;
-    Z.fit = Math.min((st.clientWidth - 32) / Z.iw, (st.clientHeight - barSpace - 32) / Z.ih);
-    Z.s = Z.fit;
-    Z.x = (st.clientWidth - Z.iw * Z.s) / 2;
-    Z.y = (st.clientHeight - barSpace - Z.ih * Z.s) / 2 + 12;
-    applyZoom();
+  function applyZoom(animate) {
+    const el = $("book-zoom");
+    const on = isZoomed();
+    el.style.transition = animate ? "transform .38s cubic-bezier(.22,.68,.32,1)" : "none";
+    el.style.transform = on ? `translate3d(${Z.tx}px, ${Z.ty}px, 0) scale(${Z.s})` : "";
+    document.body.classList.toggle("is-zoomed", on);
+    $("zoom-pill").setAttribute("aria-hidden", String(!on));
+    $("btn-zoom").setAttribute("aria-pressed", String(on));
+    $("zoom-level").textContent = Math.round(Z.s * 100) + "%";
+    if (on) dismissHint();
   }
-  function applyZoom() {
-    $("zoom-img").style.transform = `translate(${Z.x}px, ${Z.y}px) scale(${Z.s})`;
-    $("zoom-level").textContent = Math.round((Z.s / Z.fit) * 100) + "%";
+  function resetZoom(animate) {
+    Z.s = 1; Z.tx = 0; Z.ty = 0;
+    applyZoom(animate);
   }
-  function zoomAt(scale, px, py) {
-    const ns = clamp(scale, Z.fit * 0.8, Z.fit * 6);
-    Z.x = px - (px - Z.x) * (ns / Z.s);
-    Z.y = py - (py - Z.y) * (ns / Z.s);
+  // Scale to ns keeping the screen point (px, py) under the finger/cursor.
+  function zoomAt(ns, px, py, animate) {
+    ns = clamp(ns, 1, Z.max);
+    if (ns <= 1.02) { resetZoom(animate); return; }
+    const W = $("book-wrap").getBoundingClientRect();
+    const lx = px - W.left;
+    const ly = py - W.top;
+    const s0 = isZoomed() ? Z.s : 1;
+    const tx0 = isZoomed() ? Z.tx : 0;
+    const ty0 = isZoomed() ? Z.ty : 0;
+    Z.tx = lx - (lx - tx0) * (ns / s0);
+    Z.ty = ly - (ly - ty0) * (ns / s0);
     Z.s = ns;
-    applyZoom();
+    clampPan();
+    applyZoom(animate);
   }
-  function stageCenter() {
-    const st = $("zoom-stage");
-    return { x: st.clientWidth / 2, y: (st.clientHeight - 96) / 2 };
+  function trayPoint(fx, fy) {
+    const T = $("tray").getBoundingClientRect();
+    return { x: T.left + T.width * fx, y: T.top + T.height * fy };
+  }
+  // Zoom straight into the page being read, starting near its top.
+  function enterZoom() {
+    const b = contentBox();
+    const vis = visiblePages();
+    const main = primaryPage(vis);
+    const qx = b.x + (S.spread && vis.length > 1 ? (main.n === vis[1] ? b.w * 0.75 : b.w * 0.25) : b.w / 2);
+    const qy = b.y + b.h * 0.18;
+    const s = coarse ? 2.2 : 1.9;
+    const T = $("tray").getBoundingClientRect();
+    const W = $("book-wrap").getBoundingClientRect();
+    Z.s = s;
+    Z.tx = T.left + T.width / 2 - W.left - s * qx;
+    Z.ty = T.top + T.height * 0.18 - W.top - s * qy;
+    clampPan();
+    applyZoom(true);
+  }
+  function toggleZoom() {
+    if (isZoomed()) resetZoom(true);
+    else enterZoom();
+  }
+  // Turning while zoomed: the real book turns, then we land on the start of the new page.
+  function turnZoomed(dir) {
+    const vis = visiblePages();
+    const blocked = dir > 0 ? vis[vis.length - 1] >= S.total : vis[0] <= 1;
+    if (!blocked) {
+      if (dir > 0) next(); else prev();
+      const L = limits();
+      Z.tx = dir > 0 ? L.maxX : L.minX;
+      Z.ty = L.maxY;
+    }
+    clampPan();
+    applyZoom(true);
+  }
+
+  function releasePageFlip() {
+    if (!S.flip) return;
+    try { const ui = S.flip.getUI && S.flip.getUI(); if (ui) ui.touchPoint = null; } catch (e) {}
+    try { S.flip.userStop({ x: 0, y: 0 }, true); } catch (e) {}
   }
 
   function wireZoom() {
-    const stage = $("zoom-stage");
-    const local = (x, y) => {
-      const r = stage.getBoundingClientRect();
-      return { x: x - r.left, y: y - r.top };
-    };
-    $("btn-zoom").addEventListener("click", () => openZoom());
-    $("zoom-close").addEventListener("click", closeZoom);
-    $("zoom-fit").addEventListener("click", fitZoom);
-    $("zoom-in").addEventListener("click", () => { const c = stageCenter(); zoomAt(Z.s * 1.35, c.x, c.y); });
-    $("zoom-out").addEventListener("click", () => { const c = stageCenter(); zoomAt(Z.s / 1.35, c.x, c.y); });
-    $("zoom-prev").addEventListener("click", () => { if (Z.n > 1) { Z.n--; loadZoom(); } });
-    $("zoom-next").addEventListener("click", () => { if (Z.n < S.total) { Z.n++; loadZoom(); } });
+    const tray = $("tray");
+    const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 
-    stage.addEventListener("wheel", (e) => {
-      e.preventDefault();
-      const p = local(e.clientX, e.clientY);
-      zoomAt(Z.s * Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.0018)), p.x, p.y);
-    }, { passive: false });
-
-    stage.addEventListener("pointerdown", (e) => {
-      stage.setPointerCapture(e.pointerId);
-      Z.pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
-      Z.moved = 0;
-      if (Z.pts.size === 2) {
-        const [a, b] = [...Z.pts.values()];
-        Z.pinch = { d: Math.hypot(a.x - b.x, a.y - b.y) };
-      }
-      stage.classList.add("is-grabbing");
+    // While zoomed or pinching, the book's own drag handling must not see the gesture.
+    const blockTypes = ["touchstart", "touchmove", "touchend", "touchcancel", "mousedown", "mousemove", "mouseup"];
+    blockTypes.forEach((type) => {
+      window.addEventListener(type, (e) => {
+        const active = Z.gesture || Z.pinch;
+        if (!active && !(isZoomed() && tray.contains(e.target))) return;
+        if (e.target.closest && e.target.closest("button")) return;
+        e.stopPropagation();
+        if (type === "touchmove" && e.cancelable) e.preventDefault();
+      }, { capture: true, passive: false });
     });
-    stage.addEventListener("pointermove", (e) => {
+
+    tray.addEventListener("pointerdown", (e) => {
+      if (e.target.closest("button")) return;
+      if (e.pointerType === "mouse" && (!isZoomed() || e.button !== 0)) return;
+      Z.pts.set(e.pointerId, { x: e.clientX, y: e.clientY, t: performance.now() });
+
+      if (Z.pts.size === 2) {
+        if (S.state !== "read") { Z.pts.delete(e.pointerId); return; }
+        releasePageFlip();
+        const [a, b] = [...Z.pts.values()];
+        Z.pinch = { d: dist(a, b), mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } };
+        Z.pan = null;
+        Z.gesture = true;
+      } else if (Z.pts.size === 1 && isZoomed()) {
+        Z.pan = { raw: Z.tx, over: 0, moved: 0, t: performance.now() };
+        Z.gesture = true;
+        tray.classList.add("is-panning");
+        $("book-zoom").style.transition = "none";
+      }
+      if (Z.gesture) { try { tray.setPointerCapture(e.pointerId); } catch (err) {} }
+    });
+
+    tray.addEventListener("pointermove", (e) => {
       const prevPt = Z.pts.get(e.pointerId);
       if (!prevPt) return;
-      const cur = { x: e.clientX, y: e.clientY };
+      const cur = { x: e.clientX, y: e.clientY, t: prevPt.t };
       Z.pts.set(e.pointerId, cur);
-      if (Z.pts.size === 2 && Z.pinch) {
+
+      if (Z.pinch && Z.pts.size >= 2) {
         const [a, b] = [...Z.pts.values()];
-        const d = Math.hypot(a.x - b.x, a.y - b.y);
-        const mid = local((a.x + b.x) / 2, (a.y + b.y) / 2);
-        zoomAt(Z.s * (d / Z.pinch.d), mid.x, mid.y);
+        const d = dist(a, b);
+        const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+        zoomAt((isZoomed() ? Z.s : 1) * (d / Z.pinch.d), mid.x, mid.y, false);
+        if (isZoomed()) {
+          Z.tx += mid.x - Z.pinch.mid.x;
+          Z.ty += mid.y - Z.pinch.mid.y;
+          clampPan();
+          applyZoom(false);
+        }
         Z.pinch.d = d;
-        Z.moved += 10;
-      } else if (Z.pts.size === 1) {
-        Z.x += cur.x - prevPt.x;
-        Z.y += cur.y - prevPt.y;
-        Z.moved += Math.abs(cur.x - prevPt.x) + Math.abs(cur.y - prevPt.y);
-        applyZoom();
+        Z.pinch.mid = mid;
+      } else if (Z.pan && isZoomed()) {
+        const dx = cur.x - prevPt.x;
+        const dy = cur.y - prevPt.y;
+        Z.pan.moved += Math.abs(dx) + Math.abs(dy);
+        const L = limits();
+        Z.pan.raw += dx;
+        const inside = clamp(Z.pan.raw, L.minX, L.maxX);
+        Z.pan.over = Z.pan.raw - inside;
+        Z.tx = inside + Z.pan.over * 0.35;
+        Z.ty = clamp(Z.ty + dy, L.minY, L.maxY);
+        applyZoom(false);
       }
     });
-    const release = (e) => {
+
+    const end = (e) => {
       if (!Z.pts.has(e.pointerId)) return;
+      const pt = Z.pts.get(e.pointerId);
       Z.pts.delete(e.pointerId);
-      if (Z.pts.size < 2) Z.pinch = null;
-      if (!Z.pts.size) stage.classList.remove("is-grabbing");
-      if (e.type === "pointerup" && Z.moved < 6) {
-        const now = Date.now();
-        if (now - Z.lastTap < 320) {
-          const p = local(e.clientX, e.clientY);
-          if (Z.s > Z.fit * 1.05) fitZoom();
-          else zoomAt(Z.fit * 2.4, p.x, p.y);
-          Z.lastTap = 0;
-        } else Z.lastTap = now;
+
+      if (Z.pinch && Z.pts.size < 2) {
+        Z.pinch = null;
+        if (Z.s < 1.12) resetZoom(true);
+        else if (Z.pts.size === 1) Z.pan = { raw: Z.tx, over: 0, moved: 99, t: performance.now() };
       }
+      if (Z.pts.size) return;
+
+      tray.classList.remove("is-panning");
+      if (Z.pan) {
+        const { over, moved } = Z.pan;
+        Z.pan = null;
+        if (Math.abs(over) > 60 && performance.now() - Z.lastTurn > 700) {
+          Z.lastTurn = performance.now();
+          turnZoomed(over < 0 ? 1 : -1);
+        } else {
+          clampPan();
+          applyZoom(true);
+          // double-tap while zoomed returns to the full book
+          if (e.type === "pointerup" && moved < 8 && pt && performance.now() - pt.t < 300) {
+            const now = performance.now();
+            if (now - Z.lastTap < 320) { resetZoom(true); Z.lastTap = 0; } else Z.lastTap = now;
+          }
+        }
+      }
+      Z.gesture = false;
     };
-    stage.addEventListener("pointerup", release);
-    stage.addEventListener("pointercancel", release);
+    tray.addEventListener("pointerup", end);
+    tray.addEventListener("pointercancel", end);
+
+    tray.addEventListener("wheel", (e) => {
+      if (!isZoomed() && !e.ctrlKey) return;
+      e.preventDefault();
+      zoomAt((isZoomed() ? Z.s : 1) * Math.exp(-e.deltaY * (e.ctrlKey ? 0.012 : 0.0022)), e.clientX, e.clientY, false);
+    }, { passive: false });
+
+    $("btn-zoom").addEventListener("click", toggleZoom);
+    $("zoom-exit").addEventListener("click", () => resetZoom(true));
+    $("zoom-in").addEventListener("click", () => { const c = trayPoint(0.5, 0.5); zoomAt(Z.s * 1.4, c.x, c.y, true); });
+    $("zoom-out").addEventListener("click", () => { const c = trayPoint(0.5, 0.5); zoomAt(Z.s / 1.4, c.x, c.y, true); });
   }
 
   /* ---------- sound ---------- */
@@ -649,48 +766,96 @@
     if (S.audio) return S.audio;
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return null;
-    const ctx = new AC();
-    const len = Math.floor(ctx.sampleRate * 0.6);
+    let ctx;
+    try { ctx = new AC(); } catch (e) { return null; }
+    const len = Math.floor(ctx.sampleRate * 0.7);
     const buf = ctx.createBuffer(1, len, ctx.sampleRate);
     const d = buf.getChannelData(0);
-    let last = 0;
+    let brown = 0;
     for (let i = 0; i < len; i++) {
-      last = (last + 0.045 * (Math.random() * 2 - 1)) / 1.045;
-      d[i] = last * 3.4;
+      const white = Math.random() * 2 - 1;
+      brown = (brown + 0.05 * white) / 1.05;
+      d[i] = brown * 2.8 + white * 0.22;
     }
-    S.audio = { ctx, buf };
+    S.audio = { ctx, buf, primed: false };
     return S.audio;
+  }
+  // Mobile browsers only allow audio after a touch/click, so prime it on the first one.
+  function unlockAudio() {
+    if (!S.sound) return;
+    const a = ensureAudio();
+    if (!a) return;
+    if (a.ctx.state !== "running") a.ctx.resume().catch(() => {});
+    if (!a.primed) {
+      try {
+        const src = a.ctx.createBufferSource();
+        src.buffer = a.ctx.createBuffer(1, 1, 22050);
+        src.connect(a.ctx.destination);
+        src.start(0);
+        a.primed = true;
+      } catch (e) {}
+    }
   }
   function playFlip() {
     if (!S.sound) return;
     const a = ensureAudio();
     if (!a) return;
     const { ctx, buf } = a;
-    if (ctx.state === "suspended") ctx.resume();
-    const t = ctx.currentTime;
-    const src = ctx.createBufferSource();
-    src.buffer = buf;
-    src.playbackRate.value = 0.85 + Math.random() * 0.3;
+    if (ctx.state !== "running") ctx.resume().catch(() => {});
+    const t = ctx.currentTime + 0.01;
+
+    const out = ctx.createGain();
+    out.gain.value = 0.9;
+    out.connect(ctx.destination);
+
+    // paper sweep
+    const sweep = ctx.createBufferSource();
+    sweep.buffer = buf;
+    sweep.playbackRate.value = 0.9 + Math.random() * 0.25;
     const band = ctx.createBiquadFilter();
     band.type = "bandpass";
-    band.Q.value = 0.8;
-    band.frequency.setValueAtTime(3000, t);
-    band.frequency.exponentialRampToValueAtTime(650, t + 0.45);
-    const gain = ctx.createGain();
-    gain.gain.setValueAtTime(0.0001, t);
-    gain.gain.exponentialRampToValueAtTime(0.45, t + 0.06);
-    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.52);
-    src.connect(band).connect(gain).connect(ctx.destination);
-    src.start(t);
-    src.stop(t + 0.56);
+    band.Q.value = 0.9;
+    band.frequency.setValueAtTime(4200, t);
+    band.frequency.exponentialRampToValueAtTime(900, t + 0.45);
+    const g1 = ctx.createGain();
+    g1.gain.setValueAtTime(0.0001, t);
+    g1.gain.exponentialRampToValueAtTime(1, t + 0.05);
+    g1.gain.exponentialRampToValueAtTime(0.0001, t + 0.52);
+    sweep.connect(band).connect(g1).connect(out);
+    sweep.start(t);
+    sweep.stop(t + 0.56);
+
+    // crisp edge as the page lands
+    const snap = ctx.createBufferSource();
+    snap.buffer = buf;
+    const high = ctx.createBiquadFilter();
+    high.type = "highpass";
+    high.frequency.value = 2200;
+    const g2 = ctx.createGain();
+    const t2 = t + 0.4;
+    g2.gain.setValueAtTime(0.0001, t2);
+    g2.gain.exponentialRampToValueAtTime(0.8, t2 + 0.012);
+    g2.gain.exponentialRampToValueAtTime(0.0001, t2 + 0.13);
+    snap.connect(high).connect(g2).connect(out);
+    snap.start(t2, 0.2);
+    snap.stop(t2 + 0.15);
   }
   function setSound(on) {
     S.sound = on;
     const btn = $("btn-sound");
-    btn.setAttribute("aria-pressed", on);
+    btn.setAttribute("aria-pressed", String(on));
     btn.dataset.tip = on ? "Page sound on" : "Page sound off";
     setIcon(btn, on ? "sound" : "mute");
+    const item = $("sheet-sound");
+    item.setAttribute("aria-pressed", String(on));
+    setIcon(item, on ? "sound" : "mute");
+    $("sheet-sound-label").textContent = on ? "Sound on" : "Sound off";
     store.set("ems-sound", on ? "1" : "0");
+  }
+  function wireAudioUnlock() {
+    ["pointerdown", "touchend", "click", "keydown"].forEach((type) => {
+      window.addEventListener(type, unlockAudio, { capture: true, passive: true });
+    });
   }
 
   /* ---------- share, enquire, toast ---------- */
@@ -743,17 +908,23 @@
   function wireFullscreen() {
     const reader = $("catalogue");
     const btn = $("btn-full");
+    const item = $("sheet-full");
     const enabled = document.fullscreenEnabled || document.webkitFullscreenEnabled;
-    if (!enabled) { btn.hidden = true; return; }
+    if (!enabled) { btn.hidden = true; item.hidden = true; return; }
     const current = () => document.fullscreenElement || document.webkitFullscreenElement;
-    btn.addEventListener("click", () => {
+    const toggle = () => {
+      closeSheet();
       if (current()) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
       else (reader.requestFullscreen || reader.webkitRequestFullscreen).call(reader);
-    });
+    };
+    btn.addEventListener("click", toggle);
+    item.addEventListener("click", toggle);
     const sync = () => {
       const on = !!current();
       setIcon(btn, on ? "collapse" : "expand");
+      setIcon(item, on ? "collapse" : "expand");
       btn.dataset.tip = on ? "Exit fullscreen" : "Fullscreen";
+      $("sheet-full-label").textContent = on ? "Exit full" : "Fullscreen";
       scheduleLayout();
     };
     document.addEventListener("fullscreenchange", sync);
@@ -779,21 +950,21 @@
   function wireKeys() {
     document.addEventListener("keydown", (e) => {
       if (e.target.closest("input, textarea") && e.key !== "Escape") return;
-      if (Z.open) {
-        const c = stageCenter();
-        if (e.key === "Escape") closeZoom();
-        else if (e.key === "ArrowRight" && Z.n < S.total) { Z.n++; loadZoom(); }
-        else if (e.key === "ArrowLeft" && Z.n > 1) { Z.n--; loadZoom(); }
-        else if (e.key === "+" || e.key === "=") zoomAt(Z.s * 1.3, c.x, c.y);
-        else if (e.key === "-") zoomAt(Z.s / 1.3, c.x, c.y);
-        else if (e.key === "0") fitZoom();
-        return;
-      }
-      if (drawerOpen()) {
-        if (e.key === "Escape") closeDrawer();
+      if (drawerOpen() || sheetOpen()) {
+        if (e.key === "Escape") { closeDrawer(); closeSheet(); }
         return;
       }
       if (!S.flip) return;
+      if (isZoomed()) {
+        const c = trayPoint(0.5, 0.5);
+        if (e.key === "Escape") resetZoom(true);
+        else if (e.key === "ArrowRight") { e.preventDefault(); turnZoomed(1); }
+        else if (e.key === "ArrowLeft") { e.preventDefault(); turnZoomed(-1); }
+        else if (e.key === "+" || e.key === "=") zoomAt(Z.s * 1.3, c.x, c.y, true);
+        else if (e.key === "-") zoomAt(Z.s / 1.3, c.x, c.y, true);
+        else if (e.key === "0") resetZoom(true);
+        return;
+      }
       const reading = document.body.classList.contains("reading");
       if (e.key === "ArrowRight") { e.preventDefault(); next(); }
       else if (e.key === "ArrowLeft") { e.preventDefault(); prev(); }
@@ -806,15 +977,19 @@
 
   /* ---------- controls ---------- */
   function wireControls() {
-    $("btn-prev").addEventListener("click", prev);
-    $("btn-next").addEventListener("click", next);
-    $("side-prev").addEventListener("click", prev);
-    $("side-next").addEventListener("click", next);
+    const turn = (dir) => () => (isZoomed() ? turnZoomed(dir) : dir > 0 ? next() : prev());
+    $("btn-prev").addEventListener("click", turn(-1));
+    $("btn-next").addEventListener("click", turn(1));
+    $("side-prev").addEventListener("click", turn(-1));
+    $("side-next").addEventListener("click", turn(1));
     $("btn-first").addEventListener("click", () => goTo(1));
     $("btn-last").addEventListener("click", () => goTo(S.total));
     $("btn-share").addEventListener("click", share);
-    $("btn-sound").addEventListener("click", () => setSound(!S.sound));
-    qsa("[data-enquire]").forEach((b) => b.addEventListener("click", enquire));
+    $("btn-sound").addEventListener("click", () => {
+      setSound(!S.sound);
+      if (S.sound) { unlockAudio(); playFlip(); }
+    });
+    qsa("[data-enquire]").forEach((b) => b.addEventListener("click", () => { closeSheet(); enquire(); }));
     $("book3d").addEventListener("click", () => openInReader(2));
     $("hero-chronicle").addEventListener("click", () => {
       openInReader(0);
@@ -822,7 +997,7 @@
     });
 
     if ("ResizeObserver" in window) new ResizeObserver(scheduleLayout).observe($("tray"));
-    window.addEventListener("resize", () => { scheduleLayout(); if (Z.open) fitZoom(); });
+    window.addEventListener("resize", scheduleLayout);
 
     const io = new IntersectionObserver((entries) => {
       entries.forEach((en) => {
@@ -869,6 +1044,7 @@
     S.total = DATA.pages.length;
     S.groups = buildGroups(DATA.pages);
     setSound(store.get("ems-sound") !== "0");
+    wireAudioUnlock();
     fillStatic();
 
     const start = startPageFromHash();
@@ -887,6 +1063,7 @@
     [...first].forEach(loadPage);
     initFlip(start ? start - 1 : 0);
     buildDrawer();
+    wireSheet();
     wireRail();
     wireZoom();
     wireFullscreen();
