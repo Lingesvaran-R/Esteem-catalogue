@@ -137,6 +137,20 @@ async function main() {
     if (existsSync(from)) await fs.cp(from, path.join(OUT, item), { recursive: true });
   }
 
+  // Cache rules for static hosts that read _headers (Cloudflare, Netlify).
+  await fs.writeFile(
+    path.join(OUT, "_headers"),
+    [
+      "/pages/*",
+      "  Cache-Control: public, max-age=31536000, immutable",
+      "/thumbs/*",
+      "  Cache-Control: public, max-age=31536000, immutable",
+      "/assets/*",
+      "  Cache-Control: public, max-age=86400, must-revalidate",
+      ""
+    ].join("\n")
+  );
+
   const siteUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "";
   const data = JSON.stringify({ ratio: manifest.ratio, pages }).replace(/</g, "\\u003c");
   let html = await fs.readFile(path.join(ROOT, "index.html"), "utf8");

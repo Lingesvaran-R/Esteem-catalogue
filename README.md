@@ -4,7 +4,7 @@ A premium single-page site for Esteem Multi Systems (Chennai, est. 2009): a
 landing section, a realistic page-turning catalogue, the Chronicle chapter
 index, company profile and contact details.
 
-Hosted on Vercel — every push to `main` rebuilds and redeploys automatically.
+Deployed on Cloudflare Workers (`wrangler.jsonc`, serving `dist/`) — every push to `main` rebuilds and redeploys automatically. `vercel.json` is kept so the same repo also deploys on Vercel.
 
 ## Updating the catalogue
 
